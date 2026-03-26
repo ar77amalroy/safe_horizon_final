@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'zone_service.dart';
 
@@ -8,8 +8,11 @@ class SafetyService {
   List<AccidentZone> activeZones = [];
   final FlutterTts _tts = FlutterTts();
 
-  DateTime? _lastApproachAlert;
-  DateTime? _lastInsideAlert;
+  // 🟢 NEW: Track the Zone IDs instead of time to prevent spamming
+  int? _lastAlertedInsideZoneId;
+  int? _lastAlertedApproachZoneId;
+
+  DateTime? _lastMathCheck;
 
   Function(String title, String message, Color color)? onAlertPopup;
 
@@ -27,7 +30,7 @@ class SafetyService {
     try {
       activeZones = await ZoneService.fetchDangerZones();
     } catch (e) {
-      print("❌ Failed to sync zones: $e");
+      debugPrint("❌ Failed to sync zones: $e");
     }
   }
 
@@ -54,46 +57,96 @@ class SafetyService {
     return degree * pi / 180;
   }
 
-  // 🟢 THE FIX: Priority Checking Logic
-  void checkProximity(Position currentPos) {
+  double _calculateBearing(LatLng start, LatLng end) {
+    double dLon = _toRadians(end.longitude - start.longitude);
+    double y = sin(dLon) * cos(_toRadians(end.latitude));
+    double x =
+        cos(_toRadians(start.latitude)) * sin(_toRadians(end.latitude)) -
+        sin(_toRadians(start.latitude)) *
+            cos(_toRadians(end.latitude)) *
+            cos(dLon);
+    double bearing = atan2(y, x);
+    return (bearing * 180 / pi + 360) % 360;
+  }
+
+  void checkProximity({
+    required LatLng markerPosition,
+    required double markerHeading,
+    required double currentSpeedMetersPerSec,
+  }) {
+    // THROTTLE: Run math once per second maximum
+    if (_lastMathCheck != null &&
+        DateTime.now().difference(_lastMathCheck!).inMilliseconds < 1000) {
+      return;
+    }
+    _lastMathCheck = DateTime.now();
+
     if (activeZones.isEmpty) return;
 
-    bool isInside = false;
-    bool isApproaching = false;
+    int? triggeredInsideZoneId;
+    int? triggeredApproachZoneId;
 
-    // First, scan ALL zones to figure out the highest threat level
+    double dynamicWarningDistance = (currentSpeedMetersPerSec * 20).clamp(
+      50.0,
+      600.0,
+    );
+
     for (var zone in activeZones) {
+      // BOUNDING BOX PRE-FILTER
+      if ((markerPosition.latitude - zone.center.latitude).abs() > 0.006 ||
+          (markerPosition.longitude - zone.center.longitude).abs() > 0.006) {
+        continue;
+      }
+
+      // HAVERSINE DISTANCE MATH
       double distance = _calculateDistance(
-        currentPos.latitude,
-        currentPos.longitude,
+        markerPosition.latitude,
+        markerPosition.longitude,
         zone.center.latitude,
         zone.center.longitude,
       );
 
-      // We add a 15m buffer so it triggers even if you just clip the edge of the circle!
+      // PRIORITY 1: INSIDE ZONE
       if (distance <= (zone.radius + 15)) {
-        isInside = true;
-      } else if (distance <= (zone.radius + 500)) {
-        isApproaching = true;
+        triggeredInsideZoneId = zone.id;
+        break; // Stop checking, red alert is top priority
+      }
+      // PRIORITY 2: APPROACHING ZONE
+      else if (distance <= (zone.radius + dynamicWarningDistance)) {
+        double bearingToZone = _calculateBearing(markerPosition, zone.center);
+        double headingDifference = (markerHeading - bearingToZone).abs();
+
+        if (headingDifference > 180)
+          headingDifference = 360 - headingDifference;
+
+        if (headingDifference < 45) {
+          triggeredApproachZoneId = zone.id;
+        }
       }
     }
 
-    // Now, trigger the UI based on the HIGHEST priority
-    // Priority 1: If we are inside ANY zone, trigger RED.
-    if (isInside) {
-      _triggerInsideAlert();
-    }
-    // Priority 2: Only trigger ORANGE if we are approaching, but NOT inside a different zone.
-    else if (isApproaching) {
-      _triggerApproachAlert();
+    // 🟢 DYNAMIC TRIGGER LOGIC (Zero Cooldown)
+    if (triggeredInsideZoneId != null) {
+      _triggerInsideAlert(triggeredInsideZoneId);
+      _lastAlertedApproachZoneId = null; // Clear approach tracking if inside
+    } else {
+      // We are completely out of the red zone. Reset it instantly.
+      _lastAlertedInsideZoneId = null;
+
+      if (triggeredApproachZoneId != null) {
+        _triggerApproachAlert(triggeredApproachZoneId);
+      } else {
+        // We are out of the orange zone. Reset it instantly.
+        _lastAlertedApproachZoneId = null;
+      }
     }
   }
 
-  void _triggerApproachAlert() {
-    if (_lastApproachAlert == null ||
-        DateTime.now().difference(_lastApproachAlert!).inMinutes > 5) {
+  void _triggerApproachAlert(int zoneId) {
+    // Only fire if it's a new zone we haven't just alerted for
+    if (_lastAlertedApproachZoneId != zoneId) {
       _tts.speak("Heads up. You are approaching a high-risk driving zone.");
-      _lastApproachAlert = DateTime.now();
+      _lastAlertedApproachZoneId = zoneId;
 
       if (onAlertPopup != null) {
         onAlertPopup!(
@@ -105,13 +158,13 @@ class SafetyService {
     }
   }
 
-  void _triggerInsideAlert() {
-    if (_lastInsideAlert == null ||
-        DateTime.now().difference(_lastInsideAlert!).inMinutes > 5) {
+  void _triggerInsideAlert(int zoneId) {
+    // Only fire if it's a new zone we haven't just alerted for
+    if (_lastAlertedInsideZoneId != zoneId) {
       _tts.speak(
         "Caution. You are currently driving through a high-risk zone. Please reduce your speed and be safe.",
       );
-      _lastInsideAlert = DateTime.now();
+      _lastAlertedInsideZoneId = zoneId;
 
       if (onAlertPopup != null) {
         onAlertPopup!(

@@ -60,6 +60,9 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   LatLng? _animatedLocation;
   LatLng? _targetLocation;
 
+  // Speed Tracker for Safety Service
+  double _currentSpeed = 0.0;
+
   // Turn-by-Turn State
   late List<RouteStep> _currentRouteSteps;
   int _currentStepIndex = 0;
@@ -79,7 +82,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   bool _isRerouting = false;
   bool _hasInitialGpsLock = false;
 
-  // 🟢 REACTIVE BANNER STATE (Replaces the buggy dialog system)
+  // REACTIVE BANNER STATE
   bool _isHazardVisible = false;
   String _hazardTitle = "";
   String _hazardMessage = "";
@@ -126,7 +129,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
 
   @override
   void dispose() {
-    _hazardTimer?.cancel(); // Clean up the timer to prevent memory leaks!
+    _hazardTimer?.cancel();
     _positionStream?.cancel();
     _navAssistant.stop();
     _mapController.dispose();
@@ -148,6 +151,15 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       );
 
       _updateTurnGuidanceUI(_animatedLocation!);
+
+      // 🟢 NEW: Trigger safety checks using the smooth marker coordinates
+      if (_animatedLocation != null) {
+        _safetyService.checkProximity(
+          markerPosition: _animatedLocation!,
+          markerHeading: _animatedHeading,
+          currentSpeedMetersPerSec: _currentSpeed,
+        );
+      }
     });
 
     if (_isMapLocked && _animatedLocation != null) {
@@ -276,7 +288,8 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
         .listen((Position pos) {
           if (!mounted) return;
 
-          _safetyService.checkProximity(pos);
+          // 🟢 UPDATE SPEED STATE FOR SAFETY SERVICE
+          _currentSpeed = pos.speed;
 
           LatLng rawGpsLocation = LatLng(pos.latitude, pos.longitude);
           LatLng snappedLocation = _snapToRoute(rawGpsLocation);
@@ -405,12 +418,10 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     return circles;
   }
 
-  // 🟢 7. THE REACTIVE BANNER CONTROLLER (100% Bug-Free)
+  // --- 7. THE REACTIVE BANNER CONTROLLER ---
   void _showHazardPopup(String title, String message, Color color) {
-    // 1. Cancel the old timer if a new alert comes in immediately
     _hazardTimer?.cancel();
 
-    // 2. Reactively draw the banner on the screen
     setState(() {
       _hazardTitle = title;
       _hazardMessage = message;
@@ -418,7 +429,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       _isHazardVisible = true;
     });
 
-    // 3. Exactly 2 seconds later, erase the banner.
     _hazardTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) {
         setState(() {
@@ -568,15 +578,15 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             ),
           ),
 
-          // 🟢 THE NEW, BUG-FREE REACTIVE BANNER
+          // HAZARD BANNER
           if (_isHazardVisible)
             Positioned(
-              top: 130, // Safely hovers below the Turn-by-Turn banner
+              top: 130,
               left: 16,
               right: 16,
               child: Material(
                 color: Colors.transparent,
-                elevation: 10, // Gives it a nice pop-up shadow
+                elevation: 10,
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   padding: const EdgeInsets.all(16),
@@ -599,8 +609,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize:
-                              MainAxisSize.min, // Hugs content tightly
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               _hazardTitle,
