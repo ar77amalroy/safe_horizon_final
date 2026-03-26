@@ -1,22 +1,32 @@
 from sqlalchemy.orm import Session
 from models import User
-from passlib.context import CryptContext
 import random
 from datetime import datetime, timedelta
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
+import bcrypt  # 🟢 NEW: Using bcrypt directly!
 
 # =====================================================
-# PASSWORD HELPERS
+# PASSWORD HELPERS (Rewritten without Passlib)
 # =====================================================
 
 def hash_password(password: str):
-    return pwd_context.hash(password)
+    # Convert string to bytes and safely truncate to 72 bytes
+    pwd_bytes = password.encode('utf-8')[:72]
+    
+    # Generate a salt and hash the password
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(pwd_bytes, salt)
+    
+    # Decode back to a string to store in your MySQL database
+    return hashed_password.decode('utf-8')
 
 
-def verify_password(plain, hashed):
-    return pwd_context.verify(plain, hashed)
+def verify_password(plain: str, hashed: str):
+    # Convert both plain text and the database hash back to bytes
+    pwd_bytes = plain.encode('utf-8')[:72]
+    hashed_bytes = hashed.encode('utf-8')
+    
+    # Use bcrypt's secure comparison function
+    return bcrypt.checkpw(pwd_bytes, hashed_bytes)
 
 
 # =====================================================
@@ -196,6 +206,9 @@ def reset_password(db: Session, email: str, password: str):
     user.password = hash_password(password)
     user.verification_code = None
     user.code_expiry = None
+    
+    # Ensure the user is marked as verified so they can log in!
+    user.is_verified = True
 
     db.commit()
 

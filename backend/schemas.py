@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 # =====================================================
@@ -23,7 +23,8 @@ class VerifyEmail(BaseModel):
 # =====================================================
 class SetPassword(BaseModel):
     email: EmailStr
-    password: str
+    # Restrict to 72 chars to prevent Bcrypt ValueError
+    password: str = Field(..., max_length=72)
 
 
 # =====================================================
@@ -31,7 +32,8 @@ class SetPassword(BaseModel):
 # =====================================================
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    # Restrict login payload as well for safety
+    password: str = Field(..., max_length=72)
 
 
 # =====================================================
@@ -52,4 +54,5 @@ class VerifyResetCode(BaseModel):
 # Create new password
 class ResetPassword(BaseModel):
     email: EmailStr
-    password: str
+    # Restrict to 72 chars to prevent Bcrypt ValueError
+    password: str = Field(..., max_length=72)

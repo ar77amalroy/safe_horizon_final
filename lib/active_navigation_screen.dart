@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'services/osrm_service.dart';
 import 'services/navigation_assistant.dart';
+import 'services/safety_service.dart';
 
 // --- CUSTOM TWEEN FOR SMOOTH MOVEMENT ---
 class LatLngTween extends Tween<LatLng> {
@@ -48,6 +49,8 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   // Controllers
   final MapController _mapController = MapController();
   final NavigationAssistant _navAssistant = NavigationAssistant();
+  final SafetyService _safetyService = SafetyService();
+
   late AnimationController _animationController;
   StreamSubscription<Position>? _positionStream;
 
@@ -57,13 +60,13 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   LatLng? _animatedLocation;
   LatLng? _targetLocation;
 
-  // 🟢 Turn-by-Turn State
+  // Turn-by-Turn State
   late List<RouteStep> _currentRouteSteps;
   int _currentStepIndex = 0;
   String _currentInstruction = "Proceed to route";
   double _distanceToNextTurn = 0.0;
 
-  // 🟢 NEW: Point of Interest (POI) Marker State
+  // Point of Interest (POI) Marker State
   List<Marker> _poiMarkers = [];
 
   // Heading State
@@ -75,6 +78,14 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   bool _isMapLocked = true;
   bool _isRerouting = false;
   bool _hasInitialGpsLock = false;
+
+  // 🟢 REACTIVE BANNER STATE (Replaces the buggy dialog system)
+  bool _isHazardVisible = false;
+  String _hazardTitle = "";
+  String _hazardMessage = "";
+  Color _hazardColor = Colors.orange;
+  Timer? _hazardTimer;
+
   DateTime _lastRerouteTime = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime? _lastGpsUpdateTime;
 
@@ -89,10 +100,18 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     _animatedLocation = widget.startLocation;
     _currentRouteSteps = widget.initialInstructions;
 
-    // Set initial instruction if available
     if (_currentRouteSteps.isNotEmpty) {
       _currentInstruction = _currentRouteSteps.first.instruction;
     }
+
+    _safetyService.fetchDangerZones().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    // BIND THE POP-UP CALLBACK HERE
+    _safetyService.onAlertPopup = _showHazardPopup;
 
     _animationController = AnimationController(
       vsync: this,
@@ -100,11 +119,14 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     );
     _animationController.addListener(_onAnimationUpdate);
 
-    _startLocationTracking();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startLocationTracking();
+    });
   }
 
   @override
   void dispose() {
+    _hazardTimer?.cancel(); // Clean up the timer to prevent memory leaks!
     _positionStream?.cancel();
     _navAssistant.stop();
     _mapController.dispose();
@@ -125,7 +147,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
         _animationController.value,
       );
 
-      // 🟢 SYNCS THE TURN BANNER TO THE ANIMATED MARKER
       _updateTurnGuidanceUI(_animatedLocation!);
     });
 
@@ -143,7 +164,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     return (a + delta * t) % 360;
   }
 
-  // 🟢 NEW: Math to update the banner distance and flip to the next instruction
   void _updateTurnGuidanceUI(LatLng currentMarkerPos) {
     if (_currentRouteSteps.isEmpty) return;
 
@@ -155,7 +175,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
 
     final currentStep = _currentRouteSteps[_currentStepIndex];
 
-    // Calculate the distance from the animated car to the intersection
     double distance = Geolocator.distanceBetween(
       currentMarkerPos.latitude,
       currentMarkerPos.longitude,
@@ -166,7 +185,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     _distanceToNextTurn = distance;
     _currentInstruction = currentStep.instruction;
 
-    // If the car gets within 15 meters of the turn, jump to the next instruction
     if (distance < 15.0) {
       _currentStepIndex++;
     }
@@ -188,7 +206,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       if (distance < minDistance) minDistance = distance;
     }
 
-    return minDistance > 100; // 100-meter virtual fence
+    return minDistance > 100;
   }
 
   Future<void> _triggerReroute(LatLng newLocation) async {
@@ -210,7 +228,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
           _routePoints = routeData['points'];
           _navAssistant.clearMemory();
 
-          // 🟢 Reset turn-by-turn state for new route
           _currentRouteSteps = routeData['steps'] ?? [];
           _currentStepIndex = 0;
           if (_currentRouteSteps.isNotEmpty) {
@@ -231,6 +248,26 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   // --- 3. GPS STREAM HANDLER & UI UPDATES ---
 
   Future<void> _startLocationTracking() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint("❌ Location services are disabled by the user.");
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        debugPrint("❌ Location permissions are denied.");
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint("❌ Location permissions are permanently denied.");
+      return;
+    }
+
     const LocationSettings settings = LocationSettings(
       accuracy: LocationAccuracy.bestForNavigation,
     );
@@ -239,11 +276,10 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
         .listen((Position pos) {
           if (!mounted) return;
 
+          _safetyService.checkProximity(pos);
+
           LatLng rawGpsLocation = LatLng(pos.latitude, pos.longitude);
-
-          // Apply Snap-to-Route
           LatLng snappedLocation = _snapToRoute(rawGpsLocation);
-
           DateTime now = DateTime.now();
 
           if (!_hasInitialGpsLock) {
@@ -253,7 +289,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             _triggerReroute(rawGpsLocation);
           }
 
-          // DYNAMIC LATENCY CALCULATION
           int durationMs = 1200;
           if (_lastGpsUpdateTime != null) {
             int pingDelta = now.difference(_lastGpsUpdateTime!).inMilliseconds;
@@ -281,7 +316,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             curve: Curves.linear,
           );
 
-          // Trigger TTS
           _navAssistant.announceInstruction(
             _currentInstruction,
             _distanceToNextTurn,
@@ -303,7 +337,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     return Icons.straight;
   }
 
-  // --- 4.5 SNAP TO ROUTE LOGIC ---
+  // --- 5. SNAP TO ROUTE LOGIC ---
 
   LatLng _snapToRoute(LatLng rawLocation) {
     if (_routePoints.isEmpty) return rawLocation;
@@ -352,7 +386,49 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     return LatLng(a.latitude + t * abY, a.longitude + t * abX);
   }
 
-  // --- 5. UI BUILDER ---
+  // --- 6. VISUAL DANGER ZONES ---
+  List<CircleMarker> _buildDangerCircles() {
+    List<CircleMarker> circles = [];
+
+    for (var zone in _safetyService.activeZones) {
+      circles.add(
+        CircleMarker(
+          point: zone.center,
+          color: Colors.red.withOpacity(0.15),
+          borderColor: Colors.red.withOpacity(0.5),
+          borderStrokeWidth: 2,
+          useRadiusInMeter: true,
+          radius: zone.radius,
+        ),
+      );
+    }
+    return circles;
+  }
+
+  // 🟢 7. THE REACTIVE BANNER CONTROLLER (100% Bug-Free)
+  void _showHazardPopup(String title, String message, Color color) {
+    // 1. Cancel the old timer if a new alert comes in immediately
+    _hazardTimer?.cancel();
+
+    // 2. Reactively draw the banner on the screen
+    setState(() {
+      _hazardTitle = title;
+      _hazardMessage = message;
+      _hazardColor = color;
+      _isHazardVisible = true;
+    });
+
+    // 3. Exactly 2 seconds later, erase the banner.
+    _hazardTimer = Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        setState(() {
+          _isHazardVisible = false;
+        });
+      }
+    });
+  }
+
+  // --- 8. UI BUILDER ---
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +450,10 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'dev.safehorizon.app',
               ),
+
+              if (_safetyService.activeZones.isNotEmpty)
+                CircleLayer(circles: _buildDangerCircles()),
+
               if (_routePoints.isNotEmpty)
                 PolylineLayer(
                   polylines: [
@@ -391,7 +471,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
                 ),
               MarkerLayer(
                 markers: [
-                  ..._poiMarkers, // 🟢 Render the external POI markers here!
+                  ..._poiMarkers,
                   Marker(
                     point: _animatedLocation ?? widget.startLocation,
                     width: 60,
@@ -444,15 +524,12 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
               ),
               child: Row(
                 children: [
-                  // Direction Icon
                   Icon(
                     _getTurnIcon(_currentInstruction),
                     color: Colors.white,
                     size: 40,
                   ),
                   const SizedBox(width: 16),
-
-                  // Instruction & Distance Text
                   Expanded(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -482,8 +559,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
                       ],
                     ),
                   ),
-
-                  // Close Button
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
@@ -493,7 +568,66 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             ),
           ),
 
-          // 🟢 NEW: Clean, external POI Buttons Component
+          // 🟢 THE NEW, BUG-FREE REACTIVE BANNER
+          if (_isHazardVisible)
+            Positioned(
+              top: 130, // Safely hovers below the Turn-by-Turn banner
+              left: 16,
+              right: 16,
+              child: Material(
+                color: Colors.transparent,
+                elevation: 10, // Gives it a nice pop-up shadow
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _hazardColor.withOpacity(0.95),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize:
+                              MainAxisSize.min, // Hugs content tightly
+                          children: [
+                            Text(
+                              _hazardTitle,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _hazardMessage,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // POI Buttons Component
           Positioned(
             right: 16,
             top: 180,

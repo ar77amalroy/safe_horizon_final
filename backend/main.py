@@ -5,6 +5,12 @@ from sqlalchemy.orm import Session
 import os
 import shutil
 
+# 🟢 AI and Math Imports for Prediction
+import pandas as pd
+import numpy as np
+from sklearn.cluster import DBSCAN
+import math
+
 import models, schemas, crud
 from database import engine, SessionLocal
 from email_utils import send_verification_email
@@ -256,7 +262,7 @@ def delete_account(email: str, db: Session = Depends(get_db)):
 
 
 # =====================================================
-# ACCIDENT REPORT (FIXED)
+# ACCIDENT REPORT
 # =====================================================
 @app.post("/report-accident")
 async def report_accident(
@@ -391,3 +397,115 @@ def reject_report(report_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Report rejected"}
+
+
+# =====================================================
+# 🟢 HELPER: DISTANCE CALCULATOR
+# =====================================================
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371000  # Radius of Earth in meters
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+# =====================================================
+# 🟢 ACCIDENT-PRONE ZONE PREDICTION API (UPDATED FOR 2-TIER)
+# =====================================================
+@app.get("/api/accident-zones")
+def get_accident_zones(db: Session = Depends(get_db)):
+    # 1. Fetch only approved reports from the database
+    accidents = db.query(models.Accident).filter(models.Accident.status == "approved").all()
+    if not accidents:
+        return []
+
+    # 2. Clean the data
+    data = []
+    for a in accidents:
+        try:
+            data.append({"id": a.id, "lat": float(a.latitude), "lon": float(a.longitude), "severity": a.severity})
+        except ValueError:
+            continue
+            
+    if not data:
+        return []
+            
+    df = pd.DataFrame(data)
+
+    # 3. Assign Risk Weights based exactly on your Flutter app categories
+    severity_weights = {
+        "Critical": 3.0,
+        "Major": 2.0,
+        "Minor": 1.0
+    }
+    
+    # Map weights. Fill unknown/missing categories with a base value of 1.0
+    df['weight'] = df['severity'].map(severity_weights).fillna(1.0)
+
+    # 4. Run the AI Clustering Algorithm
+    epsilon_in_radians = (300 / 1000) / 6371.0 # 300 meters search radius
+    coords = np.radians(df[['lat', 'lon']].values)
+
+    # Group accidents if there are at least 10 within 300 meters
+    dbscan = DBSCAN(eps=epsilon_in_radians, min_samples=10, algorithm='ball_tree', metric='haversine')
+    df['cluster'] = dbscan.fit_predict(coords)
+
+    # 5. Process the results into Zones
+    zones = []
+    for cluster_id in df['cluster'].unique():
+        if cluster_id == -1: 
+            continue # Skip noise (isolated incidents not near others)
+
+        cluster_points = df[df['cluster'] == cluster_id]
+        
+        # Find geographic center of the cluster
+        center_lat = cluster_points['lat'].mean()
+        center_lon = cluster_points['lon'].mean()
+        
+        # Calculate cluster severity score
+        total_score = cluster_points['weight'].sum()
+        accident_count = len(cluster_points)
+
+        # Categorize Risk
+        if total_score >= 20: 
+            risk_level = "High"
+        elif total_score >= 10: 
+            risk_level = "Medium"
+        else: 
+            risk_level = "Low"
+
+        # Find the max distance from center to calculate a radius
+        max_dist = 0
+        for _, row in cluster_points.iterrows():
+            dist = haversine_distance(center_lat, center_lon, row['lat'], row['lon'])
+            if dist > max_dist: 
+                max_dist = dist
+                
+        # Buffer of 50m padding. Minimum circle size 150m.
+        radius = max(max_dist + 50, 150) 
+
+        # --- 🟢 Extract the Micro-Hotspots for this Zone ---
+        micro_hotspots = []
+        for _, row in cluster_points.iterrows():
+            micro_hotspots.append({
+                "hotspot_id": int(row['id']),
+                "lat": float(row['lat']),
+                "lng": float(row['lon']),
+                "severity": row['severity'],
+                "radius_meters": 50 # 50m tight radius for the specific accident point
+            })
+
+        zones.append({
+            "zone_id": int(cluster_id),
+            "center_lat": center_lat,
+            "center_lon": center_lon,
+            "radius_meters": radius,
+            "risk_level": risk_level,
+            "score": int(total_score),
+            "accident_count": int(accident_count),
+            "micro_hotspots": micro_hotspots # <-- Added to the response
+        })
+
+    return zones

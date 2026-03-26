@@ -9,6 +9,7 @@ import 'report_accident_screen.dart';
 import 'services/location_tracking_service.dart';
 import 'services/marker_animation_service.dart';
 import 'services/osrm_service.dart';
+import 'services/zone_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userName;
@@ -31,14 +32,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _selectedTabIndex = 0;
   bool _isTrackingCamera = true;
 
+  // 🟢 NEW: State variable to control zone visibility
+  bool _showDangerZones = true;
+
   LatLng? currentLocation;
   final MapController mapController = MapController();
   final LocationTrackingService locationService = LocationTrackingService();
   DateTime? _lastApiCallTime;
 
+  List<AccidentZone> _dangerZones = [];
+
   @override
   void initState() {
     super.initState();
+
+    _loadDangerZones();
 
     locationService.startTracking((location) {
       if (!mounted) return;
@@ -54,6 +62,15 @@ class _DashboardScreenState extends State<DashboardScreen>
         _fetchSnappedLocationInBackground(rawLocation);
       }
     });
+  }
+
+  Future<void> _loadDangerZones() async {
+    final zones = await ZoneService.fetchDangerZones();
+    if (mounted) {
+      setState(() {
+        _dangerZones = zones;
+      });
+    }
   }
 
   void _animateMarkerTo(LatLng targetLocation) {
@@ -160,6 +177,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'dev.safehorizon.app',
                   ),
+
+                  // ==========================================
+                  // 🟢 UPDATED: Only show if _showDangerZones is true
+                  // ==========================================
+                  if (_showDangerZones && _dangerZones.isNotEmpty)
+                    CircleLayer(
+                      circles: _dangerZones.map((zone) {
+                        final isHighRisk = zone.riskLevel == 'High';
+                        return CircleMarker(
+                          point: zone.center,
+                          radius: zone.radius,
+                          useRadiusInMeter: true,
+                          color: isHighRisk
+                              ? Colors.red.withOpacity(0.3)
+                              : Colors.orange.withOpacity(0.3),
+                          borderColor: isHighRisk ? Colors.red : Colors.orange,
+                          borderStrokeWidth: 2,
+                        );
+                      }).toList(),
+                    ),
+
+                  // ==========================================
                   MarkerLayer(
                     markers: [
                       Marker(
@@ -173,7 +212,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ],
               ),
 
-              // 🟢 THE NEW AUTOCOMPLETE SEARCH BAR
+              // THE AUTOCOMPLETE SEARCH BAR
               Positioned(
                 top: MediaQuery.of(context).padding.top + 20,
                 left: 20,
@@ -191,7 +230,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                   child: Autocomplete<Map<String, dynamic>>(
-                    // 1. Fetch data from Geoapify
                     optionsBuilder: (TextEditingValue textEditingValue) async {
                       if (textEditingValue.text.length < 3) {
                         return const Iterable<Map<String, dynamic>>.empty();
@@ -200,12 +238,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         textEditingValue.text,
                       );
                     },
-
-                    // 2. String to display
                     displayStringForOption: (option) =>
                         option['formatted'] as String,
-
-                    // 3. Action when user taps a suggestion
                     onSelected: (Map<String, dynamic> selection) {
                       if (currentLocation != null) {
                         final destLatLng = LatLng(
@@ -220,7 +254,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             builder: (_) => RoutePreviewScreen(
                               startLocation: currentLocation!,
                               destination: destLatLng,
-                              // Just grab the primary city/location name before the comma
                               destinationName: destName
                                   .toString()
                                   .split(',')[0]
@@ -230,8 +263,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                         );
                       }
                     },
-
-                    // 4. Customizing the Search Bar UI
                     fieldViewBuilder:
                         (context, controller, focusNode, onEditingComplete) {
                           return TextField(
@@ -251,8 +282,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                             ),
                           );
                         },
-
-                    // 5. Customizing the dropdown list
                     optionsViewBuilder: (context, onSelected, options) {
                       return Align(
                         alignment: Alignment.topLeft,
@@ -300,6 +329,38 @@ class _DashboardScreenState extends State<DashboardScreen>
                 bottom: 30,
                 child: Column(
                   children: [
+                    // 🟢 NEW: Visibility Toggle Button
+                    FloatingActionButton(
+                      heroTag: "toggleZones",
+                      mini: true,
+                      backgroundColor: _showDangerZones
+                          ? Colors.red.shade50
+                          : Colors.white,
+                      child: Icon(
+                        _showDangerZones
+                            ? Icons.visibility
+                            : Icons.visibility_off,
+                        color: _showDangerZones ? Colors.red : Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showDangerZones = !_showDangerZones;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              _showDangerZones
+                                  ? "Danger Zones Visible"
+                                  : "Danger Zones Hidden",
+                            ),
+                            duration: const Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 10),
+
                     FloatingActionButton(
                       heroTag: "zoomIn",
                       mini: true,
