@@ -1,3 +1,5 @@
+import 'package:latlong2/latlong.dart';
+
 class MicroHotspot {
   final int id;
   final double lat;
@@ -14,7 +16,6 @@ class MicroHotspot {
   });
 
   factory MicroHotspot.fromJson(Map<String, dynamic> json) {
-    // 🟢 SAFE PARSING: If the DB sends "Detecting location...", it safely becomes 0.0
     return MicroHotspot(
       id: int.tryParse(json['hotspot_id']?.toString() ?? '0') ?? 0,
       lat: double.tryParse(json['lat']?.toString() ?? '0.0') ?? 0.0,
@@ -36,6 +37,7 @@ class AccidentZone {
   final int radiusMeters;
   final String riskLevel;
   final List<MicroHotspot> microHotspots;
+  final LatLng center;
 
   AccidentZone({
     required this.zoneId,
@@ -44,10 +46,9 @@ class AccidentZone {
     required this.radiusMeters,
     required this.riskLevel,
     required this.microHotspots,
-  });
+  }) : center = LatLng(centerLat, centerLon);
 
   factory AccidentZone.fromJson(Map<String, dynamic> json) {
-    // 🟢 SAFE LIST PARSING: Prevents crashes if micro_hotspots is null
     var list = json['micro_hotspots'] as List? ?? [];
     List<MicroHotspot> hotspotList = list
         .map((i) => MicroHotspot.fromJson(i as Map<String, dynamic>))
@@ -59,14 +60,11 @@ class AccidentZone {
           double.tryParse(json['center_lat']?.toString() ?? '0.0') ?? 0.0,
       centerLon:
           double.tryParse(json['center_lon']?.toString() ?? '0.0') ?? 0.0,
-
-      // 🟢 SAFE INT PARSING: If Python sends "150.5", it grabs "150" and prevents the radix error
       radiusMeters:
           int.tryParse(
             json['radius_meters']?.toString().split('.').first ?? '150',
           ) ??
           150,
-
       riskLevel: json['risk_level']?.toString() ?? "Medium",
       microHotspots: hotspotList,
     );

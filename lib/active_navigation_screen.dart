@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'services/osrm_service.dart';
 import 'services/navigation_assistant.dart';
 import 'services/safety_service.dart';
+import 'models/accident_zone.dart';
 
 // --- CUSTOM TWEEN FOR SMOOTH MOVEMENT ---
 class LatLngTween extends Tween<LatLng> {
@@ -46,12 +47,15 @@ class ActiveNavigationScreen extends StatefulWidget {
 
 class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     with TickerProviderStateMixin {
-  // Controllers
   final MapController _mapController = MapController();
   final NavigationAssistant _navAssistant = NavigationAssistant();
   final SafetyService _safetyService = SafetyService();
 
   late AnimationController _animationController;
+  late AnimationController _blinkController;
+  late AnimationController
+  _radarController; // 🟢 NEW: Controls the radar wave effect
+
   StreamSubscription<Position>? _positionStream;
 
   // Route & Location State
@@ -60,8 +64,11 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   LatLng? _animatedLocation;
   LatLng? _targetLocation;
 
-  // Speed Tracker for Safety Service
-  double _currentSpeed = 0.0;
+  double _animatedSpeedMps = 0.0;
+
+  // Pinpoint Tracking State
+  MicroHotspot? _activeHotspot;
+  double? _distanceToHotspot;
 
   // Turn-by-Turn State
   late List<RouteStep> _currentRouteSteps;
@@ -69,7 +76,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   String _currentInstruction = "Proceed to route";
   double _distanceToNextTurn = 0.0;
 
-  // Point of Interest (POI) Marker State
+  // POI
   List<Marker> _poiMarkers = [];
 
   // Heading State
@@ -92,7 +99,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
   DateTime _lastRerouteTime = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime? _lastGpsUpdateTime;
 
-  // Styling
   final Color primaryBlue = const Color(0xFF51A8E7);
   final Color darkBlue = const Color(0xFF1B6AAB);
 
@@ -108,19 +114,39 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     }
 
     _safetyService.fetchDangerZones().then((_) {
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
     });
 
-    // BIND THE POP-UP CALLBACK HERE
     _safetyService.onAlertPopup = _showHazardPopup;
+
+    _safetyService.onHotspotUpdate = (hotspot, distance) {
+      if (mounted) {
+        setState(() {
+          _activeHotspot = hotspot;
+          _distanceToHotspot = distance;
+        });
+      }
+    };
 
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     );
     _animationController.addListener(_onAnimationUpdate);
+
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+
+    // 🟢 NEW: Initialize the Radar Controller (2-second expanding loop)
+    _radarController =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..addListener(() {
+            if (mounted)
+              setState(() {}); // Force UI update for the smooth radar wave
+          })
+          ..repeat();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startLocationTracking();
@@ -134,10 +160,10 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     _navAssistant.stop();
     _mapController.dispose();
     _animationController.dispose();
+    _blinkController.dispose();
+    _radarController.dispose(); // 🟢 NEW: Dispose radar
     super.dispose();
   }
-
-  // --- 1. CORE ANIMATION ENGINE ---
 
   void _onAnimationUpdate() {
     if (_latLngTween == null) return;
@@ -152,12 +178,11 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
 
       _updateTurnGuidanceUI(_animatedLocation!);
 
-      // 🟢 NEW: Trigger safety checks using the smooth marker coordinates
       if (_animatedLocation != null) {
         _safetyService.checkProximity(
           markerPosition: _animatedLocation!,
           markerHeading: _animatedHeading,
-          currentSpeedMetersPerSec: _currentSpeed,
+          currentSpeedMetersPerSec: _animatedSpeedMps,
         );
       }
     });
@@ -186,7 +211,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     }
 
     final currentStep = _currentRouteSteps[_currentStepIndex];
-
     double distance = Geolocator.distanceBetween(
       currentMarkerPos.latitude,
       currentMarkerPos.longitude,
@@ -202,8 +226,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     }
   }
 
-  // --- 2. REROUTING LOGIC ---
-
   bool _isUserOffTrack(LatLng currentPos) {
     if (_routePoints.isEmpty || !_hasInitialGpsLock) return false;
 
@@ -217,7 +239,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       );
       if (distance < minDistance) minDistance = distance;
     }
-
     return minDistance > 100;
   }
 
@@ -226,8 +247,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     if (DateTime.now().difference(_lastRerouteTime).inSeconds < 10) return;
 
     setState(() => _isRerouting = true);
-    _navAssistant.stop();
-    debugPrint("🔄 Rerouting...");
+    _navAssistant.clearMemory();
 
     final routeData = await OsrmService.getRoute(
       newLocation,
@@ -252,32 +272,18 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       } else {
         setState(() => _isRerouting = false);
         _lastRerouteTime = DateTime.now();
-        debugPrint("❌ Reroute failed. No road found nearby.");
       }
     }
   }
 
-  // --- 3. GPS STREAM HANDLER & UI UPDATES ---
-
   Future<void> _startLocationTracking() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      debugPrint("❌ Location services are disabled by the user.");
-      return;
-    }
+    if (!serviceEnabled) return;
 
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        debugPrint("❌ Location permissions are denied.");
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      debugPrint("❌ Location permissions are permanently denied.");
-      return;
+      if (permission == LocationPermission.denied) return;
     }
 
     const LocationSettings settings = LocationSettings(
@@ -287,9 +293,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     _positionStream = Geolocator.getPositionStream(locationSettings: settings)
         .listen((Position pos) {
           if (!mounted) return;
-
-          // 🟢 UPDATE SPEED STATE FOR SAFETY SERVICE
-          _currentSpeed = pos.speed;
 
           LatLng rawGpsLocation = LatLng(pos.latitude, pos.longitude);
           LatLng snappedLocation = _snapToRoute(rawGpsLocation);
@@ -317,6 +320,23 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             _targetHeading = pos.heading;
           }
 
+          double distanceMeters = Geolocator.distanceBetween(
+            animationStart.latitude,
+            animationStart.longitude,
+            _targetLocation!.latitude,
+            _targetLocation!.longitude,
+          );
+
+          double timeSeconds = durationMs / 1000.0;
+
+          setState(() {
+            if (timeSeconds > 0) {
+              _animatedSpeedMps = distanceMeters / timeSeconds;
+            } else {
+              _animatedSpeedMps = 0.0;
+            }
+          });
+
           _latLngTween = LatLngTween(
             begin: animationStart,
             end: _targetLocation!,
@@ -336,8 +356,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
         });
   }
 
-  // --- 4. ICON HELPER ---
-
   IconData _getTurnIcon(String instruction) {
     final lowerInst = instruction.toLowerCase();
     if (lowerInst.contains("left")) return Icons.turn_left;
@@ -349,8 +367,6 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     }
     return Icons.straight;
   }
-
-  // --- 5. SNAP TO ROUTE LOGIC ---
 
   LatLng _snapToRoute(LatLng rawLocation) {
     if (_routePoints.isEmpty) return rawLocation;
@@ -377,10 +393,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       }
     }
 
-    if (minDistance <= 35) {
-      return snappedPoint;
-    }
-
+    if (minDistance <= 35) return snappedPoint;
     return rawLocation;
   }
 
@@ -399,26 +412,55 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
     return LatLng(a.latitude + t * abY, a.longitude + t * abX);
   }
 
-  // --- 6. VISUAL DANGER ZONES ---
+  // 🟢 NEW: Pulsing Radar display logic
   List<CircleMarker> _buildDangerCircles() {
     List<CircleMarker> circles = [];
+    double radarProgress = _radarController.value; // Animates 0.0 to 1.0
 
     for (var zone in _safetyService.activeZones) {
+      double maxRadius = zone.radiusMeters.toDouble();
+
+      // 1. Static base circle (very faint, shows the total boundary)
       circles.add(
         CircleMarker(
           point: zone.center,
-          color: Colors.red.withOpacity(0.15),
-          borderColor: Colors.red.withOpacity(0.5),
-          borderStrokeWidth: 2,
+          color: Colors.red.withOpacity(0.05),
+          borderColor: Colors.red.withOpacity(0.15),
+          borderStrokeWidth: 1.5,
           useRadiusInMeter: true,
-          radius: zone.radius,
+          radius: maxRadius,
+        ),
+      );
+
+      // 2. First expanding radar ring
+      circles.add(
+        CircleMarker(
+          point: zone.center,
+          color: Colors.transparent,
+          // Fades out as it approaches the edge
+          borderColor: Colors.red.withOpacity((1.0 - radarProgress) * 0.6),
+          borderStrokeWidth: 3,
+          useRadiusInMeter: true,
+          radius: maxRadius * radarProgress,
+        ),
+      );
+
+      // 3. Second expanding radar ring (offset by 50% for continuous wave)
+      double radarProgress2 = (radarProgress + 0.5) % 1.0;
+      circles.add(
+        CircleMarker(
+          point: zone.center,
+          color: Colors.transparent,
+          borderColor: Colors.red.withOpacity((1.0 - radarProgress2) * 0.6),
+          borderStrokeWidth: 3,
+          useRadiusInMeter: true,
+          radius: maxRadius * radarProgress2,
         ),
       );
     }
     return circles;
   }
 
-  // --- 7. THE REACTIVE BANNER CONTROLLER ---
   void _showHazardPopup(String title, String message, Color color) {
     _hazardTimer?.cancel();
 
@@ -429,19 +471,17 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
       _isHazardVisible = true;
     });
 
-    _hazardTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _isHazardVisible = false;
-        });
-      }
+    int displayTimeMilliseconds = title.contains("Accident Area") ? 1500 : 4000;
+
+    _hazardTimer = Timer(Duration(milliseconds: displayTimeMilliseconds), () {
+      if (mounted) setState(() => _isHazardVisible = false);
     });
   }
 
-  // --- 8. UI BUILDER ---
-
   @override
   Widget build(BuildContext context) {
+    int speedKmh = (_animatedSpeedMps * 3.6).round();
+
     return Scaffold(
       body: Stack(
         children: [
@@ -482,6 +522,31 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
               MarkerLayer(
                 markers: [
                   ..._poiMarkers,
+
+                  if (_activeHotspot != null)
+                    Marker(
+                      point: LatLng(_activeHotspot!.lat, _activeHotspot!.lng),
+                      width: 40,
+                      height: 40,
+                      child: FadeTransition(
+                        opacity: _blinkController,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.redAccent.withOpacity(0.8),
+                                blurRadius: 15,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
                   Marker(
                     point: _animatedLocation ?? widget.startLocation,
                     width: 60,
@@ -495,6 +560,7 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
                       ),
                     ),
                   ),
+
                   Marker(
                     point: widget.destination,
                     width: 40,
@@ -578,10 +644,56 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
             ),
           ),
 
+          // LIVE DISTANCE TRACKER FOR PINPOINT ACCIDENT COORDINATE
+          if (_activeHotspot != null && _distanceToHotspot != null)
+            Positioned(
+              top: 115,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Material(
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade900,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.purpleAccent.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.my_location,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "${_distanceToHotspot!.toStringAsFixed(0)}m to accident area",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // HAZARD BANNER
           if (_isHazardVisible)
             Positioned(
-              top: 130,
+              top: 165,
               left: 16,
               right: 16,
               child: Material(
@@ -639,12 +751,56 @@ class _ActiveNavigationScreenState extends State<ActiveNavigationScreen>
           // POI Buttons Component
           Positioned(
             right: 16,
-            top: 180,
+            top: 250,
             child: PoiActionButtons(
               currentLocation: _animatedLocation,
               onMarkersUpdated: (newMarkers) {
                 setState(() => _poiMarkers = newMarkers);
               },
+            ),
+          ),
+
+          // SPEEDOMETER UI
+          Positioned(
+            bottom: 40,
+            left: 20,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: darkBlue, width: 3),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "$speedKmh",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: darkBlue,
+                      height: 1.0,
+                    ),
+                  ),
+                  const Text(
+                    "km/h",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 

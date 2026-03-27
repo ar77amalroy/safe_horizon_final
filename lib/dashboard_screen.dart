@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
+
 import 'route_preview_screen.dart';
-import 'services/map_matching_service.dart';
 import 'profile_screen.dart';
 import 'report_accident_screen.dart';
+import 'services/map_matching_service.dart';
 import 'services/location_tracking_service.dart';
 import 'services/marker_animation_service.dart';
 import 'services/osrm_service.dart';
 import 'services/zone_service.dart';
+
+// 🟢 NEW: Added the import for the updated model
+import 'models/accident_zone.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userName;
@@ -32,7 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _selectedTabIndex = 0;
   bool _isTrackingCamera = true;
 
-  // 🟢 NEW: State variable to control zone visibility
+  // State variable to control zone visibility
   bool _showDangerZones = true;
 
   LatLng? currentLocation;
@@ -183,11 +187,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                   // ==========================================
                   if (_showDangerZones && _dangerZones.isNotEmpty)
                     CircleLayer(
-                      circles: _dangerZones.map((zone) {
+                      // 🟢 FIXED: Added <CircleMarker> type casting
+                      circles: _dangerZones.map<CircleMarker>((zone) {
                         final isHighRisk = zone.riskLevel == 'High';
                         return CircleMarker(
                           point: zone.center,
-                          radius: zone.radius,
+                          // 🟢 FIXED: Updated to use radiusMeters.toDouble()
+                          radius: zone.radiusMeters.toDouble(),
                           useRadiusInMeter: true,
                           color: isHighRisk
                               ? Colors.red.withOpacity(0.3)
@@ -329,7 +335,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 bottom: 30,
                 child: Column(
                   children: [
-                    // 🟢 NEW: Visibility Toggle Button
+                    // Visibility Toggle Button
                     FloatingActionButton(
                       heroTag: "toggleZones",
                       mini: true,
