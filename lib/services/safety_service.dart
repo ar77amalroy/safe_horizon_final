@@ -79,7 +79,7 @@ class SafetyService {
     required double currentSpeedMetersPerSec,
   }) {
     if (_lastMathCheck != null &&
-        DateTime.now().difference(_lastMathCheck!).inMilliseconds < 1000) {
+        DateTime.now().difference(_lastMathCheck!).inMilliseconds < 250) {
       return;
     }
     _lastMathCheck = DateTime.now();
@@ -92,23 +92,26 @@ class SafetyService {
 
     MicroHotspot? closestHotspot;
     double? closestHotspotDistance;
+    double? closestApproachDistance;
 
+    // 🟢 20-second warning for main zones, 10-second warning for micro-hotspots
+    // Clamped between 50m and 1500m so it works perfectly even if stopped in traffic
     double dynamicWarningDistance = (currentSpeedMetersPerSec * 20).clamp(
       50.0,
-      600.0,
+      1500.0,
     );
-    double microWarningDistance = (currentSpeedMetersPerSec * 10).clamp(
+    double dynamicMicroWarningDistance = (currentSpeedMetersPerSec * 10).clamp(
       25.0,
       100.0,
     );
 
     for (var zone in activeZones) {
-      if ((markerPosition.latitude - zone.centerLat).abs() > 0.006 ||
-          (markerPosition.longitude - zone.centerLon).abs() > 0.006) {
+      if ((markerPosition.latitude - zone.centerLat).abs() > 0.02 ||
+          (markerPosition.longitude - zone.centerLon).abs() > 0.02) {
         continue;
       }
 
-      double distanceToZone = _calculateDistance(
+      double distanceToZoneCenter = _calculateDistance(
         markerPosition.latitude,
         markerPosition.longitude,
         zone.centerLat,
@@ -116,7 +119,7 @@ class SafetyService {
       );
 
       // PRIORITY 1: INSIDE
-      if (distanceToZone <= (zone.radiusMeters + 15)) {
+      if (distanceToZoneCenter <= (zone.radiusMeters + 15)) {
         triggeredInsideZoneId = zone.zoneId;
 
         if (zone.microHotspots.isNotEmpty) {
@@ -128,18 +131,19 @@ class SafetyService {
               hotspot.lng,
             );
 
-            // Are we close to the specific accident coordinate?
-            if (distanceToHotspot <= microWarningDistance) {
+            if (distanceToHotspot <= dynamicMicroWarningDistance) {
               double bearingToHotspot = _calculateBearing(
                 markerPosition,
                 LatLng(hotspot.lat, hotspot.lng),
               );
               double hsHeadingDifference = (markerHeading - bearingToHotspot)
                   .abs();
-              if (hsHeadingDifference > 180)
-                hsHeadingDifference = 360 - hsHeadingDifference;
 
-              if (hsHeadingDifference < 45) {
+              if (hsHeadingDifference > 180) {
+                hsHeadingDifference = 360 - hsHeadingDifference;
+              }
+
+              if (hsHeadingDifference < 60) {
                 if (distanceToHotspot > 10.0) {
                   if (closestHotspotDistance == null ||
                       distanceToHotspot < closestHotspotDistance!) {
@@ -155,18 +159,22 @@ class SafetyService {
         break;
       }
       // PRIORITY 2: APPROACHING
-      else if (distanceToZone <= (zone.radiusMeters + dynamicWarningDistance)) {
+      else if (distanceToZoneCenter <=
+          (zone.radiusMeters + dynamicWarningDistance)) {
         double bearingToZone = _calculateBearing(
           markerPosition,
           LatLng(zone.centerLat, zone.centerLon),
         );
         double headingDifference = (markerHeading - bearingToZone).abs();
 
-        if (headingDifference > 180)
+        if (headingDifference > 180) {
           headingDifference = 360 - headingDifference;
+        }
 
-        if (headingDifference < 45) {
+        if (headingDifference < 75) {
           triggeredApproachZoneId = zone.zoneId;
+          closestApproachDistance = distanceToZoneCenter - zone.radiusMeters;
+          if (closestApproachDistance < 0) closestApproachDistance = 0;
         }
       }
     }
@@ -179,7 +187,6 @@ class SafetyService {
       _triggerInsideAlert(triggeredInsideZoneId);
       _lastAlertedApproachZoneId = null;
 
-      // 🟢 PASS THE DISTANCE TO THE ALERT METHOD
       if (triggeredMicroHotspotId != null && closestHotspotDistance != null) {
         _triggerMicroHotspotAlert(
           triggeredMicroHotspotId,
@@ -192,15 +199,17 @@ class SafetyService {
       _lastAlertedInsideZoneId = null;
       _lastAlertedMicroHotspotId = null;
 
-      if (triggeredApproachZoneId != null) {
-        _triggerApproachAlert(triggeredApproachZoneId);
+      if (triggeredApproachZoneId != null && closestApproachDistance != null) {
+        _triggerApproachAlert(
+          triggeredApproachZoneId,
+          closestApproachDistance!,
+        );
       } else {
         _lastAlertedApproachZoneId = null;
       }
     }
   }
 
-  // 🟢 UPDATED: ADDED DISTANCE PARAMETER AND DYNAMIC AUDIO
   void _triggerMicroHotspotAlert(int hotspotId, double distance) {
     if (_lastAlertedMicroHotspotId != hotspotId) {
       String distanceText = distance.toStringAsFixed(0);
@@ -219,15 +228,22 @@ class SafetyService {
     }
   }
 
-  void _triggerApproachAlert(int zoneId) {
+  void _triggerApproachAlert(int zoneId, double distance) {
     if (_lastAlertedApproachZoneId != zoneId) {
-      _tts.speak("Heads up. You are approaching a high-risk driving zone.");
+      // Formats distances over 1000m into kilometers automatically
+      String distanceText = distance >= 1000
+          ? "${(distance / 1000).toStringAsFixed(1)} kilometers"
+          : "${distance.toStringAsFixed(0)} meters";
+
+      _tts.speak(
+        "Heads up. You are approaching a high-risk driving zone in $distanceText.",
+      );
       _lastAlertedApproachZoneId = zoneId;
 
       if (onAlertPopup != null) {
         onAlertPopup!(
           "Approaching Hazard",
-          "You are approaching a historically high-risk driving zone. Please stay alert.",
+          "You are approaching a historically high-risk driving zone in $distanceText. Please stay alert.",
           Colors.orange.shade800,
         );
       }
