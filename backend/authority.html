@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Horizon | Authority Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        :root { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #263238; margin: 0; min-height: 100vh; }
+        body { margin: 0; }
+        .header { background: #263238; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .main { padding: 2rem; max-width: 1000px; margin: 0 auto; }
+        .panel { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { padding: 1rem; border-bottom: 1px solid #eceff1; text-align: left; }
+        th { background: #eceff1; color: #455a64; }
+        .btn { padding: 0.5rem 1rem; border-radius: 4px; border: none; font-weight: 600; cursor: pointer; color: white; }
+        .btn-success { background: #2e7d32; } .btn-danger { background: #c62828; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
+        .status-assigned { background: #fff3e0; color: #ef6c00; } .status-resolved { background: #e8f5e9; color: #2e7d32; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+            <span class="material-icons">local_police</span> Partner Authority Portal
+        </h2>
+        <div>
+            <label>Testing as Authority ID: </label>
+            <input type="number" id="authIdInput" value="1" style="width: 50px; padding: 4px;">
+            <button onclick="loadAssignedCases()" style="padding: 4px 8px;">Load Cases</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="panel">
+            <h3>Cases Assigned for Verification</h3>
+            <p style="color: #546e7a;">Please verify the following incidents reported in your jurisdiction.</p>
+            <table>
+                <thead><tr><th>Case ID</th><th>Time</th><th>Location & Details</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="cases-table-body"><tr><td colspan="5" style="text-align: center;">Click 'Load Cases' to fetch your assignments.</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        async function loadAssignedCases() {
+            const authId = document.getElementById('authIdInput').value;
+            const tableBody = document.getElementById('cases-table-body');
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Loading...</td></tr>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/authority/${authId}/cases`);
+                if (!response.ok) throw new Error("Failed");
+                const cases = await response.json();
+
+                if (cases.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No cases assigned to you currently.</td></tr>'; return;
+                }
+
+                tableBody.innerHTML = '';
+                cases.forEach(c => {
+                    const isPending = c.status === 'assigned_to_auth';
+                    const badgeClass = isPending ? 'status-assigned' : 'status-resolved';
+                    const statusText = isPending ? 'Needs Verification' : 'Resolved';
+
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td><strong>#${c.id}</strong></td><td>${c.reported_at}</td>
+                            <td>Lat: ${c.latitude.toFixed(4)}, Lng: ${c.longitude.toFixed(4)}<br><small>${c.severity} Severity</small></td>
+                            <td><span class="status-badge ${badgeClass}">${statusText}</span></td>
+                            <td>
+                                ${isPending ? `
+                                    <button class="btn btn-success" onclick="verifyCase(${c.id}, 'approve')">Confirm Accident</button>
+                                    <button class="btn btn-danger" onclick="verifyCase(${c.id}, 'reject')">Fake Report</button>
+                                ` : '<span style="color: gray;">Verification Complete</span>'}
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (err) { tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Error loading cases.</td></tr>'; }
+        }
+
+        async function verifyCase(reportId, action) {
+            if(!confirm(`Are you sure you want to mark this case as ${action}?`)) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/authority/verify/${reportId}/${action}`, { method: 'PUT' });
+                if(response.ok) loadAssignedCases(); else alert("Failed to verify.");
+            } catch (err) { alert("Network error."); }
+        }
+    </script>
+</body>
+</html>
