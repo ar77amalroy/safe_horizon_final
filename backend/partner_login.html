@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Horizon | Partner Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center; }
+        .login-card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center; }
+        .logo-area { display: flex; align-items: center; justify-content: center; gap: 8px; color: #0d47a1; margin-bottom: 1.5rem; }
+        .logo-area h1 { margin: 0; font-size: 1.5rem; }
+        p.subtitle { color: #546e7a; font-size: 0.95rem; margin-bottom: 2rem; }
+        
+        .form-group { margin-bottom: 1.5rem; text-align: left; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #546e7a; margin-bottom: 6px; }
+        .form-control { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cfd8dc; border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
+        .form-control:focus { border-color: #1976d2; box-shadow: 0 0 0 3px rgba(25,118,210,0.1); }
+        
+        .btn { width: 100%; padding: 12px; background: #1976d2; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn:hover { background: #0d47a1; }
+        .btn:disabled { background: #90caf9; cursor: not-allowed; }
+
+        /* Hide the OTP section initially */
+        #otpSection { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="logo-area">
+            <span class="material-icons" style="font-size: 32px;">shield</span>
+            <h1>Partner Portal</h1>
+        </div>
+        <p class="subtitle" id="instructionText">Enter your official registered email to receive a one-time login code.</p>
+
+        <div id="emailSection">
+            <div class="form-group">
+                <label class="form-label">Official Authority Email</label>
+                <input type="email" id="emailInput" class="form-control" placeholder="e.g., dispatch@police.gov" required>
+            </div>
+            <button class="btn" id="sendOtpBtn" onclick="requestOTP()">Send Login Code</button>
+        </div>
+
+        <div id="otpSection">
+            <div class="form-group">
+                <label class="form-label">6-Digit OTP</label>
+                <input type="text" id="otpInput" class="form-control" placeholder="123456" maxlength="6" style="letter-spacing: 4px; font-size: 1.2rem; text-align: center;">
+            </div>
+            <button class="btn" id="verifyOtpBtn" onclick="verifyOTP()">Secure Login</button>
+            <button class="btn" style="background: transparent; color: #1976d2; margin-top: 10px; font-size: 0.85rem;" onclick="location.reload()">Use a different email</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+        let userEmail = '';
+
+        async function requestOTP() {
+            const email = document.getElementById('emailInput').value;
+            if (!email) { alert("Please enter your email."); return; }
+
+            const btn = document.getElementById('sendOtpBtn');
+            btn.innerText = "Sending..."; btn.disabled = true;
+
+            try {
+                // Use POST and pass email as a query parameter
+                const res = await fetch(`${API_BASE_URL}/partner/request-otp?email=${encodeURIComponent(email)}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    userEmail = email; // Save it for step 2
+                    document.getElementById('emailSection').style.display = 'none';
+                    document.getElementById('otpSection').style.display = 'block';
+                    document.getElementById('instructionText').innerHTML = `We sent a 6-digit code to <b>${email}</b>.`;
+                } else {
+                    alert(data.detail || "Error sending OTP.");
+                    btn.innerText = "Send Login Code"; btn.disabled = false;
+                }
+            } catch (err) {
+                alert("Network error. Is the backend running?");
+                btn.innerText = "Send Login Code"; btn.disabled = false;
+            }
+        }
+
+        async function verifyOTP() {
+            const otp = document.getElementById('otpInput').value;
+            if (otp.length !== 6) { alert("Please enter a valid 6-digit code."); return; }
+
+            const btn = document.getElementById('verifyOtpBtn');
+            btn.innerText = "Verifying..."; btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/partner/verify-otp?email=${encodeURIComponent(userEmail)}&otp=${encodeURIComponent(otp)}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Save partner info to localStorage so the dashboard knows who is logged in
+                    localStorage.setItem("partnerSession", JSON.stringify({
+                        id: data.partner_id,
+                        name: data.partner_name,
+                        type: data.partner_type
+                    }));
+                    
+                    // Redirect to the actual dashboard
+                    window.location.href = "partner_dashboard.html";
+                } else {
+                    alert(data.detail || "Invalid or expired OTP.");
+                    btn.innerText = "Secure Login"; btn.disabled = false;
+                }
+            } catch (err) {
+                alert("Network error.");
+                btn.innerText = "Secure Login"; btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

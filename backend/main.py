@@ -6,6 +6,12 @@ from pydantic import BaseModel  # 🟢 Added for Partner schema
 import os
 import shutil
 
+# 🟢 NEW: Imports for Partner OTP and Email
+import smtplib
+from email.mime.text import MIMEText
+import random
+from datetime import datetime, timedelta
+
 # 🟢 AI and Math Imports for Prediction
 import pandas as pd
 import numpy as np
@@ -445,6 +451,112 @@ def get_partners(db: Session = Depends(get_db)):
     except Exception as e:
         print(f"DATABASE ERROR: {e}")
         return []
+
+# =====================================================
+# 🟢 NEW: PARTNER PORTAL OTP ADDITIONS
+# =====================================================
+
+# --- EMAIL CONFIGURATION FOR OTP ---
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+# ⚠️ ACTION REQUIRED: Update these credentials
+SENDER_EMAIL = "safehorizon99@gmail.com" 
+SENDER_PASSWORD = "pzgl vynx opqi ykvu"         
+
+def send_otp_email(to_email: str, otp: str):
+    msg = MIMEText(f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.")
+    msg['Subject'] = 'Safe Horizon - Secure Partner Login'
+    msg['From'] = SENDER_EMAIL
+    msg['To'] = to_email
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.send_message(msg)
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send OTP email. Check server logs.")
+
+# --- OTP ENDPOINTS ---
+@app.post("/partner/request-otp")
+def request_otp(email: str, db: Session = Depends(get_db)):
+    partner = db.query(models.Authority).filter(models.Authority.email == email).first()
+    
+    if not partner:
+        raise HTTPException(status_code=404, detail="Authority account not found. Contact Admin.")
+
+    otp = str(random.randint(100000, 999999))
+    
+    partner.otp_code = otp
+    partner.otp_expires_at = datetime.utcnow() + timedelta(minutes=5)
+    db.commit()
+
+    send_otp_email(email, otp)
+    
+    return {"message": f"OTP sent successfully to {email}"}
+
+
+@app.post("/partner/verify-otp")
+def verify_otp(email: str, otp: str, db: Session = Depends(get_db)):
+    partner = db.query(models.Authority).filter(models.Authority.email == email).first()
+    
+    if not partner:
+        raise HTTPException(status_code=404, detail="Authority not found.")
+        
+    if partner.otp_code != otp:
+        raise HTTPException(status_code=401, detail="Invalid OTP code.")
+        
+    if partner.otp_expires_at and partner.otp_expires_at < datetime.utcnow():
+        raise HTTPException(status_code=401, detail="OTP has expired. Please request a new one.")
+
+    partner.otp_code = None
+    partner.otp_expires_at = None
+    db.commit()
+
+    return {
+        "message": "Login successful",
+        "partner_id": partner.id,
+        "partner_name": partner.name,
+        "partner_type": partner.type,
+        "latitude": partner.latitude,
+        "longitude": partner.longitude
+    }
+
+
+# =====================================================
+# 🟢 LIVE DISPATCH ROUTING (ADMIN -> PARTNER)
+# =====================================================
+
+@app.put("/authority/assign/{report_id}/{partner_id}")
+def assign_report_to_partner(report_id: int, partner_id: int, db: Session = Depends(get_db)):
+    # 1. Find the accident report
+    report = db.query(models.Accident).filter(models.Accident.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Accident report not found")
+
+    # 2. Find the partner authority
+    partner = db.query(models.Authority).filter(models.Authority.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner authority not found")
+
+    # 3. Assign the report and update the status
+    report.assigned_partner_id = partner.id
+    report.status = "dispatched" # Changes from 'pending' to 'dispatched'
+    db.commit()
+
+    return {"message": f"Report #{report_id} successfully dispatched to {partner.name}"}
+
+
+@app.get("/partner/{partner_id}/dispatches")
+def get_partner_dispatches(partner_id: int, db: Session = Depends(get_db)):
+    # Fetch all reports assigned to this specific partner that aren't resolved yet
+    dispatches = db.query(models.Accident)\
+        .filter(models.Accident.assigned_partner_id == partner_id)\
+        .filter(models.Accident.status == "dispatched")\
+        .all()
+    
+    return dispatches
 
 
 # =====================================================

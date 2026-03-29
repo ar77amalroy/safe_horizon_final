@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from database import Base
 
-
 # =====================================================
 # USER TABLE
 # =====================================================
@@ -60,6 +59,10 @@ class Accident(Base):
     # rejected = invalid report
     status = Column(String(20), default="pending", nullable=False)
 
+    # ✅ ASSIGNED PARTNER TRACKING (NEW)
+    # Links this specific accident to a dispatched hospital/police station
+    assigned_partner_id = Column(Integer, nullable=True)
+
 
 # =====================================================
 # AUTHORITY / PARTNER TABLE
@@ -80,3 +83,7 @@ class Authority(Base):
     # Location for proximity dispatching
     latitude = Column(String(50), nullable=False)
     longitude = Column(String(50), nullable=False)
+
+    # ✅ OTP VERIFICATION FOR PARTNER LOGIN
+    otp_code = Column(String(6), nullable=True)
+    otp_expires_at = Column(DateTime, nullable=True)
