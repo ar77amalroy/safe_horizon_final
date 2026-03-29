@@ -21,7 +21,7 @@
         .app-shell { display: flex; height: 100vh; }
         
         /* ===== SIDEBAR ===== */
-        .sidebar { width: 250px; background: #fff; border-right: 1px solid #e3eaf5; padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 2px 0 10px rgba(13, 71, 161, 0.05); }
+        .sidebar { width: 250px; background: #fff; border-right: 1px solid #e3eaf5; padding: 1.5rem 1rem; display: flex; flex-direction: column; gap: 0.5rem; box-shadow: 2px 0 10px rgba(13, 71, 161, 0.05); z-index: 10; }
         .sidebar h1 { font-size: 1.25rem; margin-bottom: 2rem; padding-left: 0.5rem; display: flex; align-items: center; gap: 8px;}
         .nav-btn { display: flex; align-items: center; gap: 12px; padding: 0.8rem 1rem; border-radius: 8px; color: #546e7a; font-weight: 500; text-decoration: none; border: none; background: transparent; text-align: left; transition: all 0.2s; }
         .nav-btn:hover { background: #f5f9ff; color: #0d47a1; } .nav-btn.active { background: #e3f2fd; color: #0d47a1; font-weight: 600; }
@@ -49,7 +49,7 @@
         .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; transition: opacity 0.2s; } .btn:hover { opacity: 0.9; }
         .btn-primary { background: #1976d2; color: #fff; } .btn-danger { background: #c62828; color: #fff; } .btn-success { background: #2e7d32; color: #fff; } .btn-ghost { background: transparent; color: #546e7a; border: 1px solid #cfd8dc; }
         
-        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: capitalize; }
+        .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; text-transform: capitalize; display: inline-block; }
         .status-pending { background: #fff3e0; color: #ef6c00; } .status-approved { background: #e8f5e9; color: #2e7d32; } .status-rejected { background: #ffebee; color: #c62828; }
         .badge-police { background: #e3f2fd; color: #1976d2; } .badge-hospital { background: #ffebee; color: #c62828; } .badge-fire { background: #fff3e0; color: #e65100; }
 
@@ -147,8 +147,7 @@
                 <table>
                     <thead><tr><th>Partner Name</th><th>Type</th><th>Contact</th><th>Coverage Coordinates</th><th>Status</th></tr></thead>
                     <tbody id="partners-table-body">
-                        <tr><td><strong>Central Police Station</strong></td><td><span class="status-badge badge-police">Police</span></td><td>dispatch@police.gov</td><td>Lat: 8.5241<br>Lng: 76.9366</td><td><span class="status-badge status-approved">Active</span></td></tr>
-                        <tr><td><strong>City General Hospital</strong></td><td><span class="status-badge badge-hospital">Hospital</span></td><td>emergency@medical.gov</td><td>Lat: 8.5265<br>Lng: 76.9400</td><td><span class="status-badge status-approved">Active</span></td></tr>
+                        <tr><td colspan="5" style="text-align: center;">Loading partners...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -158,7 +157,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 style="margin: 0;">Verify Accident & Dispatch</h2>
-                    <button class="btn btn-ghost" onclick="closeModal()">✕ Close</button>
+                    <button class="btn btn-ghost" onclick="closeModal('verifyModal')">✕ Close</button>
                 </div>
                 <div id="modal-report-details" style="background: #f5f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #1976d2;"></div>
                 <div id="poiResults" class="poi-list"><div style="text-align: center; padding: 2rem;">Loading...</div></div>
@@ -227,22 +226,15 @@
 </div>
 
 <script>
+    // System Config
     const API_BASE_URL = 'http://127.0.0.1:8000';
     const TOMTOM_API_KEY = 'e4fD2NJaHWYFBFKE2oCAoFeYnmAInn6o';
     
     // Globals
-    let adminMap;
-    let pickerMap;
-    let pickerMarker;
+    let adminMap, pickerMap, pickerMarker;
     let allGlobalReports = []; 
+    let internalPartners = []; // Pulled from backend
     let severityChart, statusChart, fullTrendChart, miniTrendChart;
-
-    // --- Mock Database for Internal Partners ---
-    // In a real app, this would be populated by an API fetch (e.g., GET /admin/partners)
-    let internalPartners = [
-        { id: 1, name: 'Central Police Station', type: 'police', lat: 8.5241, lng: 76.9366, email: 'dispatch@police.gov', phone: '+91 471 233 1843' },
-        { id: 2, name: 'City General Hospital', type: 'hospital', lat: 8.5265, lng: 76.9400, email: 'emergency@medical.gov', phone: '+91 471 252 8000' }
-    ];
 
     // --- HAVERSINE DISTANCE MATH ---
     function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -265,13 +257,15 @@
         }
     }
 
+    // --- INITIALIZATION ---
     window.onload = () => { 
         initMap(); 
         loadZones(); 
         loadUserReports(); 
+        loadPartners();
     };
 
-    // --- MAIN MAP ---
+    // --- MAIN MAP (RISK ZONES) ---
     function initMap() {
         adminMap = L.map('adminMap').setView([8.5241, 76.9366], 12);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap contributors' }).addTo(adminMap);
@@ -374,13 +368,13 @@
     }
 
     // --- VERIFICATION MODAL & DISPATCHING ---
-    function closeModal() { document.getElementById('verifyModal').classList.remove('active'); }
+    function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
     async function openVerificationModal(report) {
         document.getElementById('verifyModal').classList.add('active');
         document.getElementById('modal-report-details').innerHTML = `<b>Report #${report.id}</b> - ${report.severity}<br>📍 Lat: ${report.latitude}, Lng: ${report.longitude}`;
-        document.getElementById('modalApproveBtn').onclick = () => { closeModal(); updateReportStatus(report.id, 'approve'); };
-        document.getElementById('modalRejectBtn').onclick = () => { closeModal(); updateReportStatus(report.id, 'reject'); };
+        document.getElementById('modalApproveBtn').onclick = () => { closeModal('verifyModal'); updateReportStatus(report.id, 'approve'); };
+        document.getElementById('modalRejectBtn').onclick = () => { closeModal('verifyModal'); updateReportStatus(report.id, 'reject'); };
         
         const resultsContainer = document.getElementById('poiResults');
         resultsContainer.innerHTML = '<div style="text-align: center; padding: 2rem;"><span class="material-icons" style="font-size: 30px; color: #1976d2;">autorenew</span><br>Scanning for Partners & Public Units...</div>';
@@ -391,7 +385,7 @@
         try {
             resultsContainer.innerHTML = ''; 
 
-            // 1. PROCESS SAFE HORIZON REGISTERED PARTNERS
+            // 1. PROCESS SAFE HORIZON REGISTERED PARTNERS (DB)
             let nearbyPartners = internalPartners.map(p => {
                 return { ...p, distance: calculateDistance(crashLat, crashLng, p.lat, p.lng) };
             }).filter(p => p.distance <= 10).sort((a, b) => a.distance - b.distance);
@@ -484,9 +478,10 @@
             if (res.ok) {
                 btn.style.background = "#0d47a1"; 
                 btn.innerHTML = '<span class="material-icons" style="font-size: 14px; vertical-align: middle;">check_circle</span> Dispatched';
-            } else {
-                throw new Error("API Error");
-            }
+                
+                // Refresh reports to show action complete
+                setTimeout(() => { loadUserReports(); closeModal('verifyModal'); }, 1000);
+            } else { throw new Error("API Error"); }
         } catch (error) {
             alert("Failed to push report to partner portal.");
             btn.innerText = originalText;
@@ -501,16 +496,50 @@
         } catch (e) { alert("Network Error"); }
     }
 
-    // --- INLINE MAP PICKER & PARTNER CREATION ---
-    function openPartnerModal() {
-        document.getElementById('addPartnerModal').classList.add('active');
+    // --- PARTNER FETCHING & CREATION ---
+    async function loadPartners() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/partners`);
+            if (!res.ok) return;
+            
+            const partners = await res.json();
+            
+            internalPartners = partners.map(p => ({
+                id: p.id,
+                name: p.name,
+                type: p.type,
+                email: p.email,
+                phone: p.phone,
+                lat: parseFloat(p.latitude),
+                lng: parseFloat(p.longitude)
+            }));
+
+            const tbody = document.getElementById('partners-table-body');
+            tbody.innerHTML = '';
+
+            internalPartners.forEach(p => {
+                let badgeClass = "badge-police"; let typeLabel = "Police";
+                if(p.type === 'hospital') { badgeClass = "badge-hospital"; typeLabel = "Hospital"; }
+                if(p.type === 'fire') { badgeClass = "badge-fire"; typeLabel = "Fire & Rescue"; }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${p.name}</strong><br><span style="font-size: 0.8em; color: gray;">ID: AUTH_${p.id}</span></td>
+                        <td><span class="status-badge ${badgeClass}">${typeLabel}</span></td>
+                        <td>${p.email}<br><span style="font-size: 0.85em; color: gray;">📞 ${p.phone}</span></td>
+                        <td>Lat: ${p.lat.toFixed(4)}<br>Lng: ${p.lng.toFixed(4)}</td>
+                        <td><span class="status-badge status-approved">Active</span></td>
+                    </tr>
+                `;
+            });
+        } catch (err) { console.error("Failed to load partners"); }
     }
+
+    function openPartnerModal() { document.getElementById('addPartnerModal').classList.add('active'); }
 
     function closePartnerModal() {
         document.getElementById('addPartnerModal').classList.remove('active');
         document.getElementById('addPartnerForm').reset();
-        
-        // Hide map and clear marker if modal is closed
         document.getElementById('pickerMapContainer').style.display = 'none';
         document.getElementById('pickerMapHint').style.display = 'none';
         if (pickerMarker && pickerMap) pickerMap.removeLayer(pickerMarker);
@@ -526,9 +555,7 @@
             
             if (!pickerMap) {
                 pickerMap = L.map('pickerMap').setView([8.5241, 76.9366], 13); 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
-                    attribution: '© OpenStreetMap contributors' 
-                }).addTo(pickerMap);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors' }).addTo(pickerMap);
 
                 pickerMap.on('click', function(e) {
                     document.getElementById('partnerLat').value = e.latlng.lat.toFixed(6);
@@ -557,39 +584,30 @@
         btn.innerText = "Processing..."; btn.disabled = true;
 
         const payload = {
-            id: internalPartners.length + 1, 
             name: document.getElementById('partnerName').value,
             type: document.getElementById('partnerType').value,
             email: document.getElementById('partnerEmail').value,
             phone: document.getElementById('partnerPhone').value,
-            lat: parseFloat(document.getElementById('partnerLat').value),
-            lng: parseFloat(document.getElementById('partnerLng').value),
+            latitude: document.getElementById('partnerLat').value,
+            longitude: document.getElementById('partnerLng').value,
         };
 
         try {
-            await new Promise(r => setTimeout(r, 600)); 
+            const res = await fetch(`${API_BASE_URL}/admin/partners`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error("API Failed");
+
+            alert("✅ Partner account created and saved to database successfully!\n\nCredentials sent to: " + payload.email);
             
-            internalPartners.push(payload);
-
-            let badgeClass = "badge-police"; let typeLabel = "Police";
-            if(payload.type === 'hospital') { badgeClass = "badge-hospital"; typeLabel = "Hospital"; }
-            if(payload.type === 'fire') { badgeClass = "badge-fire"; typeLabel = "Fire & Rescue"; }
-
-            const tbody = document.getElementById('partners-table-body');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><strong>${payload.name}</strong><br><span style="font-size: 0.8em; color: gray;">ID: AUTH_NEW</span></td>
-                <td><span class="status-badge ${badgeClass}">${typeLabel}</span></td>
-                <td>${payload.email}<br><span style="font-size: 0.85em; color: gray;">📞 ${payload.phone}</span></td>
-                <td>Lat: ${payload.lat.toFixed(4)}<br>Lng: ${payload.lng.toFixed(4)}</td>
-                <td><span class="status-badge status-approved">Active</span></td>
-            `;
-            tbody.insertBefore(tr, tbody.firstChild);
-
-            alert("✅ Partner account created successfully!\n\nCredentials sent to: " + payload.email);
             closePartnerModal();
+            loadPartners(); // Refresh the table dynamically
+
         } catch (err) {
-            alert("Failed to create partner");
+            alert("Failed to save partner to the database.");
         } finally {
             btn.innerText = "Create Account"; btn.disabled = false;
         }

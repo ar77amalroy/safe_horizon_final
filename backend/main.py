@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Req
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from pydantic import BaseModel  # 🟢 Added for Partner schema
 import os
 import shutil
 
@@ -397,6 +398,53 @@ def reject_report(report_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Report rejected"}
+
+
+# 🟢 NEW: Partner Schema for validation
+class PartnerCreate(BaseModel):
+    name: str
+    type: str
+    email: str
+    phone: str
+    latitude: str
+    longitude: str
+
+
+# 🟢 NEW: Create Partner Route
+@app.post("/admin/partners")
+def create_partner(partner: PartnerCreate, db: Session = Depends(get_db)):
+    try:
+        # Check if email already exists
+        existing_partner = db.query(models.Authority).filter(models.Authority.email == partner.email).first()
+        if existing_partner:
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+        new_auth = models.Authority(
+            name=partner.name,
+            type=partner.type,
+            email=partner.email,
+            phone=partner.phone,
+            latitude=partner.latitude,
+            longitude=partner.longitude
+        )
+        db.add(new_auth)
+        db.commit()
+        db.refresh(new_auth)
+        return new_auth
+    except Exception as e:
+        db.rollback()
+        print(f"DATABASE ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 🟢 NEW: Get Partners Route
+@app.get("/admin/partners")
+def get_partners(db: Session = Depends(get_db)):
+    try:
+        return db.query(models.Authority).all()
+    except Exception as e:
+        print(f"DATABASE ERROR: {e}")
+        return []
 
 
 # =====================================================

@@ -59,3 +59,24 @@ class Accident(Base):
     # approved = confirmed accident
     # rejected = invalid report
     status = Column(String(20), default="pending", nullable=False)
+
+
+# =====================================================
+# AUTHORITY / PARTNER TABLE
+# =====================================================
+class Authority(Base):
+    __tablename__ = "authorities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    
+    # Partner basic info
+    name = Column(String(100), nullable=False)
+    type = Column(String(50), nullable=False)  # e.g., police, hospital, fire
+    
+    # Contact and login
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    phone = Column(String(20), nullable=False)
+    
+    # Location for proximity dispatching
+    latitude = Column(String(50), nullable=False)
+    longitude = Column(String(50), nullable=False)
