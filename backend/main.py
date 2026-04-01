@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel  # 🟢 Added for Partner schema
 import os
 import shutil
+from io import StringIO # 🟢 NEW: Added for CSV parsing in memory
 
 # 🟢 NEW: Imports for Partner OTP and Email
 import smtplib
@@ -452,6 +453,43 @@ def get_partners(db: Session = Depends(get_db)):
         print(f"DATABASE ERROR: {e}")
         return []
 
+
+# =====================================================
+# 🟢 ADMIN: FIND NEARBY PARTNERS FOR DISPATCH
+# =====================================================
+@app.get("/admin/report/{report_id}/nearby-partners")
+def get_nearby_partners(report_id: int, db: Session = Depends(get_db)):
+    # 1. Get the accident location
+    report = db.query(models.Accident).filter(models.Accident.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    # 2. Get all registered partners
+    partners = db.query(models.Authority).all()
+    
+    nearby_partners = []
+    for p in partners:
+        # 3. Calculate distance using your existing Haversine function
+        distance_meters = haversine_distance(
+            float(report.latitude), float(report.longitude), 
+            float(p.latitude), float(p.longitude)
+        )
+        
+        nearby_partners.append({
+            "id": p.id,
+            "name": p.name,
+            "type": p.type,
+            "phone": p.phone,
+            "email": p.email,
+            "distance_km": round(distance_meters / 1000, 2) # Convert to KM
+        })
+        
+    # 4. Sort the list so the closest partner is at the top
+    nearby_partners.sort(key=lambda x: x["distance_km"])
+    
+    return nearby_partners
+
+
 # =====================================================
 # 🟢 NEW: PARTNER PORTAL OTP ADDITIONS
 # =====================================================
@@ -571,8 +609,139 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
+
 # =====================================================
-# 🟢 ACCIDENT-PRONE ZONE PREDICTION API (UPDATED FOR 2-TIER)
+# 🟢 PARTNER PORTAL: UPLOAD DATA TO ADMIN DATABASE
+# =====================================================
+
+# 1. Single Manual Entry Upload
+@app.post("/authority/{auth_id}/report")
+def partner_report_accident(
+    auth_id: int,
+    latitude: str = Form(...),
+    longitude: str = Form(...),
+    severity: str = Form(...),
+    description: str = Form("Verified Authority Report"),
+    accident_datetime: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    partner = db.query(models.Authority).filter(models.Authority.id == auth_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    new_accident = models.Accident(
+        user_email=partner.email, # Tag the upload with the partner's email
+        latitude=latitude,
+        longitude=longitude,
+        severity=severity,
+        description=description,
+        accident_datetime=accident_datetime,
+        status="approved" # Auto-approve trusted data
+    )
+    db.add(new_accident)
+    db.commit()
+    
+    return {"message": "Data successfully uploaded to the Admin Database."}
+
+# 2. Bulk CSV Upload
+@app.post("/authority/{auth_id}/upload-csv")
+async def partner_upload_csv(auth_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed")
+    
+    partner = db.query(models.Authority).filter(models.Authority.id == auth_id).first()
+    if not partner:
+        raise HTTPException(status_code=404, detail="Partner not found")
+
+    contents = await file.read()
+    df = pd.read_csv(StringIO(contents.decode("utf-8")))
+    
+    inserted_records = 0
+    for _, row in df.iterrows():
+        raw_sev = str(row.get('severity', 'Minor')).strip()
+        sev = 'Critical' if 'Fatal' in raw_sev else 'Major' if 'Grievous' in raw_sev else 'Minor'
+        
+        acc = models.Accident(
+            user_email=partner.email, # Tag the upload
+            latitude=str(row['latitude']),
+            longitude=str(row['longitude']),
+            severity=sev,
+            description=str(row.get('description', 'Bulk CSV Upload')),
+            accident_datetime=str(row.get('datetime', datetime.now().strftime("%b %d, %Y"))),
+            status="approved"
+        )
+        db.add(acc)
+        inserted_records += 1
+        
+    db.commit()
+    return {"message": f"Successfully uploaded {inserted_records} verified records to the Admin Database."}
+
+# 3. Admin Route to View Partner Contributions
+@app.get("/admin/partner/{auth_id}/data")
+def get_partner_uploaded_data(auth_id: int, db: Session = Depends(get_db)):
+    partner = db.query(models.Authority).filter(models.Authority.id == auth_id).first()
+    if not partner:
+        return []
+        
+    # Find all accidents where the user_email matches the partner's email
+    reports = db.query(models.Accident).filter(models.Accident.user_email == partner.email).all()
+    return reports
+
+
+# =====================================================
+# 🟢 ADMIN: MANUALLY ADD RECORD & ANALYTICS
+# =====================================================
+
+@app.post("/admin/report")
+def admin_manual_add_report(
+    latitude: str = Form(...),
+    longitude: str = Form(...),
+    severity: str = Form(...),
+    description: str = Form("Manually added by Admin"),
+    accident_datetime: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    # Auto-approve since it is entered by the Admin
+    new_accident = models.Accident(
+        user_email="admin_manual_entry@safehorizon.com", 
+        latitude=latitude,
+        longitude=longitude,
+        severity=severity,
+        description=description,
+        accident_datetime=accident_datetime,
+        status="approved" 
+    )
+    db.add(new_accident)
+    db.commit()
+    
+    return {"message": "Record manually added to the system successfully."}
+
+
+@app.get("/admin/analytics")
+def get_admin_analytics(db: Session = Depends(get_db)):
+    # 1. Overview Cards Data
+    total_reports = db.query(models.Accident).count()
+    pending_reports = db.query(models.Accident).filter(models.Accident.status == "pending").count()
+    total_partners = db.query(models.Authority).count()
+    
+    # 2. Severity Distribution for Doughnut Chart
+    minor_count = db.query(models.Accident).filter(models.Accident.severity == "Minor").count()
+    major_count = db.query(models.Accident).filter(models.Accident.severity == "Major").count()
+    critical_count = db.query(models.Accident).filter(models.Accident.severity == "Critical").count()
+
+    # Return structured data for Chart.js
+    return {
+        "overview": {
+            "total_reports": total_reports,
+            "pending_action": pending_reports,
+            "active_partners": total_partners,
+        },
+        "severity_chart": [minor_count, major_count, critical_count]
+    }
+
+
+# =====================================================
+# 🟢 ACCIDENT-PRONE ZONE PREDICTION API (UPDATED WITH DATA)
 # =====================================================
 @app.get("/api/accident-zones")
 def get_accident_zones(db: Session = Depends(get_db)):
@@ -585,7 +754,14 @@ def get_accident_zones(db: Session = Depends(get_db)):
     data = []
     for a in accidents:
         try:
-            data.append({"id": a.id, "lat": float(a.latitude), "lon": float(a.longitude), "severity": a.severity})
+            data.append({
+                "id": a.id, 
+                "lat": float(a.latitude), 
+                "lon": float(a.longitude), 
+                "severity": a.severity,
+                "datetime": a.accident_datetime, # 🟢 Added for UI
+                "desc": a.description            # 🟢 Added for UI
+            })
         except ValueError:
             continue
             
@@ -654,6 +830,8 @@ def get_accident_zones(db: Session = Depends(get_db)):
                 "lat": float(row['lat']),
                 "lng": float(row['lon']),
                 "severity": row['severity'],
+                "datetime": row['datetime'], # <-- Passed to UI
+                "desc": row['desc'],         # <-- Passed to UI
                 "radius_meters": 50 # 50m tight radius for the specific accident point
             })
 
