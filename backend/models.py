@@ -17,7 +17,9 @@ class User(Base):
 
     # credentials
     email = Column(String(100), unique=True, index=True, nullable=False)
-    password = Column(String(255), nullable=False)
+    
+    # ✅ FIXED: Now allows empty passwords for the OTP Registration flow
+    password = Column(String(255), nullable=True)
 
     # ✅ PROFILE IMAGE (NEW - PERMANENT STORAGE)
     profile_image = Column(String(255), nullable=True)
