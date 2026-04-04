@@ -30,13 +30,9 @@ from email_utils import send_verification_email
 app = FastAPI()
 
 # CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+@app.get("/")
+def read_root():
+    return {"status": "SafeHorizon API is Live and Running!"}
 
 # create tables
 models.Base.metadata.create_all(bind=engine)
