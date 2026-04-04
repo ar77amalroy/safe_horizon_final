@@ -135,7 +135,7 @@ class _ReportAccidentScreenState extends State<ReportAccidentScreen> {
 
     final request = http.MultipartRequest(
       "POST",
-      Uri.parse("http://10.0.2.2:8000/report-accident"),
+      Uri.parse("https://safehorizon-3.onrender.com/report-accident"),
     );
 
     request.fields["user_email"] = widget.userEmail;
