@@ -6,7 +6,7 @@ DATABASE_URL = "mysql+pymysql://2K3gYUe4LSEWSLX.root:rOPczS0IsBGtYz4I@gateway01.
 
 engine = create_engine(DATABASE_URL,
     pool_pre_ping=True,  # Checks if the database is still listening
-    pool_recycle=300     # Refreshes the connection every 5 minutes)
+    pool_recycle=300  )   # Refreshes the connection every 5 minutes)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
