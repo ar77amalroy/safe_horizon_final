@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config.dart'; // 🟢 ADD THIS IMPORT!
 
 class ApiService {
   // Android Emulator localhost
-  static const String baseUrl = "https://safehorizon-3.onrender.com";
+  static const String baseUrl = "AppConfig.baseUrl";
   // =====================================================
   // REGISTER
   // =====================================================

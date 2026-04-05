@@ -54,7 +54,11 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'safehorizon-3.onrender.com';
+        // ☁️ CLOUD URL (Render) - Comment this out for now
+        // const API_BASE_URL = 'https://safehorizon-3.onrender.com';
+
+        // 💻 LOCAL URL (Your Laptop) - Use this for local testing
+        const API_BASE_URL = 'http://127.0.0.1:8000';
         let userEmail = '';
 
         async function requestOTP() {

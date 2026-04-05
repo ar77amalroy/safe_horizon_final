@@ -1,20 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ================= INTERNET ================= -->
-    <!-- Required for API calls + map loading -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- ================= LOCATION PERMISSIONS ================= -->
-    <!-- GPS precise location -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
-    <!-- Network-based location -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
-    <!-- Recommended for Android 12+ -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-    <!-- GPS hardware declaration -->
     <uses-feature
         android:name="android.hardware.location.gps"
         android:required="false" />
@@ -22,9 +15,9 @@
     <application
         android:label="safehorizon"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true"> 
 
-        <!-- GOOGLE MAPS API KEY -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDTze0cTKBxDCPbi0BzsHDXp-Bce2cLgNs"/>
@@ -39,7 +32,6 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Theme while Flutter initializes -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme"/>
@@ -51,14 +43,12 @@
 
         </activity>
 
-        <!-- Flutter embedding v2 -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
 
     </application>
 
-    <!-- Required by Flutter text processing plugin -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

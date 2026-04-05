@@ -197,7 +197,11 @@
     <div id="imageModal" class="modal"><div class="modal-content" style="max-width: 600px; text-align: center;"><h2 style="margin-top: 0; color: #0d47a1;">Accident Photo</h2><img id="modalImagePreview" src="" alt="Accident photo not found" style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-bottom: 15px; object-fit: contain;"><div style="text-align: right;"><button class="btn btn-danger" onclick="closeImageModal()">Close Image</button></div></div></div>
 
     <script>
-        const API_BASE_URL = 'safehorizon-3.onrender.com';
+        // ☁️ CLOUD URL (Render)
+        // const API_BASE_URL = 'https://safehorizon-3.onrender.com';
+
+        // 💻 LOCAL URL (Your Laptop)
+        const API_BASE_URL = 'http://127.0.0.1:8000';
         const GEOAPIFY_KEY = "fd24e74b5e854fa4981cdd39f8452044"; 
 
         let severityChartInstance = null;

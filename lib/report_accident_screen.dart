@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'map_picker_screen.dart';
 import 'utils/app_toast.dart'; // ✅ NEW
+import 'config.dart'; // Or wherever you saved it
 
 class ReportAccidentScreen extends StatefulWidget {
   final String userEmail;
@@ -135,7 +136,7 @@ class _ReportAccidentScreenState extends State<ReportAccidentScreen> {
 
     final request = http.MultipartRequest(
       "POST",
-      Uri.parse("https://safehorizon-3.onrender.com/report-accident"),
+      Uri.parse("${AppConfig.baseUrl}/report-accident"),
     );
 
     request.fields["user_email"] = widget.userEmail;
