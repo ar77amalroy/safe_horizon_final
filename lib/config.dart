@@ -12,5 +12,5 @@ class AppConfig {
   // static const String baseUrl = "http://10.0.2.2:8000";
 
   // ☁️ CLOUD URL (Render)
-  const String baseUrl = "https://safe-horizon-backend.onrender.com";
+  static const String baseUrl = "https://safe-horizon-backend.onrender.com";
 }
