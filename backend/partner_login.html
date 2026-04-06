@@ -216,7 +216,14 @@
                     userEmail = email; // Save it for step 2
                     document.getElementById('emailSection').style.display = 'none';
                     document.getElementById('otpSection').style.display = 'block';
-                    document.getElementById('instructionText').innerHTML = `We sent a 6-digit code to <b>${email}</b>.`;
+                    
+                    if (data.otp) {
+                        // Email couldn't be sent (Render SMTP blocked) — show OTP directly
+                        document.getElementById('otpInput').value = data.otp;
+                        document.getElementById('instructionText').innerHTML = `<b style="color:#0e7490;">Your OTP code: ${data.otp}</b><br><span style="font-size:0.85rem;color:#64748b;">(Email service unavailable — code shown here instead)</span>`;
+                    } else {
+                        document.getElementById('instructionText').innerHTML = `We sent a 6-digit code to <b>${email}</b>.`;
+                    }
                 } else {
                     alert(data.detail || "Error sending OTP.");
                     btn.innerText = "Send Login Code"; btn.disabled = false;

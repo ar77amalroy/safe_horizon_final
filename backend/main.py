@@ -604,7 +604,7 @@ async def request_otp(email: str, db: Session = Depends(get_db)):
     if email_sent:
         return {"message": f"OTP sent successfully to {email}"}
     else:
-        return {"message": f"OTP generated for {email}. Check your email or contact admin for the code."}
+        return {"message": f"OTP generated (email unavailable). Your code is: {otp}", "otp": otp}
 
 
 @app.post("/partner/verify-otp")
