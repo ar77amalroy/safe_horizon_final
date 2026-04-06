@@ -571,13 +571,18 @@ async def send_otp_email(to_email: str, otp: str):
     )
 
     try:
+        import socket
+        socket.setdefaulttimeout(5)  # 5 sec timeout for SMTP
         print(f"📧 Attempting to send OTP to {to_email}...")
         fm = FastMail(conf)
         await fm.send_message(message)
+        socket.setdefaulttimeout(None)  # Reset
         print(f"✅ OTP email sent successfully to {to_email}")
+        return True
     except Exception as e:
-        print(f"❌ Failed to send OTP email: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to send OTP email: {str(e)}")
+        print(f"⚠️ Email send failed (SMTP may be blocked): {e}")
+        print(f"📋 OTP for {to_email}: {otp}  (check Render logs)")
+        return False
 
 # --- OTP ENDPOINTS ---
 @app.post("/partner/request-otp")
@@ -593,9 +598,13 @@ async def request_otp(email: str, db: Session = Depends(get_db)):
     partner.otp_expires_at = datetime.utcnow() + timedelta(minutes=5)
     db.commit()
 
-    await send_otp_email(email, otp)
+    print(f"🔐 Generated OTP for {email}: {otp}")
+    email_sent = await send_otp_email(email, otp)
     
-    return {"message": f"OTP sent successfully to {email}"}
+    if email_sent:
+        return {"message": f"OTP sent successfully to {email}"}
+    else:
+        return {"message": f"OTP generated for {email}. Check your email or contact admin for the code."}
 
 
 @app.post("/partner/verify-otp")
