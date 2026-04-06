@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Safe Horizon | Admin Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        @keyframes floatDiagonal {
+            0% { transform: translate(40%, -40%) rotate(-30deg); }
+            50% { transform: translate(-40%, 40%) rotate(-30deg); }
+            100% { transform: translate(40%, -40%) rotate(-30deg); }
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #f0f9ff;
+            height: 100vh; margin: 0;
+            display: flex; justify-content: center; align-items: center;
+            position: relative; overflow: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            width: 140vmax; height: 140vmax;
+            top: 50%; left: 50%;
+            margin-top: -70vmax; margin-left: -70vmax;
+            background: linear-gradient(135deg,
+                rgba(103,232,249,0.4) 0%,
+                rgba(6,182,212,0.4) 30%,
+                rgba(165,243,252,0.4) 50%,
+                rgba(34,211,238,0.35) 70%,
+                transparent 100%);
+            border-radius: 40px;
+            animation: floatDiagonal 18s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+        .login-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            padding: 2.5rem; border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.45);
+            width: 100%; max-width: 400px; text-align: center;
+            position: relative; z-index: 1;
+        }
+        .logo-area { display: flex; align-items: center; justify-content: center; gap: 10px; color: #0e7490; margin-bottom: 1.5rem; }
+        .logo-area h1 { margin: 0; font-size: 1.5rem; font-weight: 700; }
+        p.subtitle { color: #64748b; margin-bottom: 2rem; font-size: 0.95rem; }
+        .form-group { margin-bottom: 1.2rem; text-align: left; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 6px; }
+        .form-control {
+            width: 100%; box-sizing: border-box; padding: 12px;
+            border: 1px solid rgba(203,213,225,0.6); border-radius: 8px;
+            font-size: 1rem; outline: none;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(6px);
+            transition: all 0.25s ease;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .form-control:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6,182,212,0.2);
+            background: rgba(255,255,255,0.75);
+        }
+        .btn {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 14px rgba(6,182,212,0.3);
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            box-shadow: 0 6px 20px rgba(6,182,212,0.45);
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-area">
+            <img src="/assets/images/logo.png" alt="Logo" style="width: 45px; height: 45px;">
+            <h1>Admin Panel</h1>
+        </div>
+        <p class="subtitle">Secure access for Safe Horizon administrators only.</p>
+        <form id="adminLoginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label class="form-label">Administrator Email</label>
+                <input type="email" id="adminEmail" class="form-control" placeholder="admin@safehorizon.com" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="adminPass" class="form-control" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn" id="loginBtn">Login to Dashboard</button>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://10.197.96.244:8000';
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPass').value;
+            const btn = document.getElementById('loginBtn');
+
+            btn.innerText = "Authenticating..."; btn.disabled = true;
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem("adminToken", data.access_token);
+                    window.location.href = "/admin";
+                } else {
+                    alert(data.detail || "Invalid credentials.");
+                    btn.innerText = "Login to Dashboard"; btn.disabled = false;
+                }
+            } catch (err) {
+                alert("Network error.");
+                btn.innerText = "Login to Dashboard"; btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

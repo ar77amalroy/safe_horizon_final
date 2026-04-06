@@ -5,56 +5,162 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safe Horizon | Admin Dashboard</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        :root { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4f8; color: #1e293b; margin: 0; min-height: 100vh; }
-        body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
-        
+        @keyframes floatDiagonal {
+            0% { transform: translate(40%, -40%) rotate(-30deg); }
+            50% { transform: translate(-40%, 40%) rotate(-30deg); }
+            100% { transform: translate(40%, -40%) rotate(-30deg); }
+        }
+        :root { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; margin: 0; min-height: 100vh; }
+        body {
+            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto;
+            background: #f0f9ff;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            width: 140vmax; height: 140vmax;
+            top: 50%; left: 50%;
+            margin-top: -70vmax; margin-left: -70vmax;
+            background: linear-gradient(135deg,
+                rgba(103,232,249,0.4) 0%,
+                rgba(6,182,212,0.4) 30%,
+                rgba(165,243,252,0.4) 50%,
+                rgba(34,211,238,0.35) 70%,
+                transparent 100%);
+            border-radius: 40px;
+            animation: floatDiagonal 18s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+
         /* HEADER */
-        .header { background: #0d47a1; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        .header h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        
+        .header {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            color: #1e293b; padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            border-bottom: 1px solid rgba(255,255,255,0.4);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; font-weight: 600; color: #0e7490; }
+
         /* LAYOUT & PANELS */
-        .container { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; }
-        .panel { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 2rem; border: 1px solid #e2e8f0; }
-        
+        .container { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; position: relative; z-index: 1; }
+        .panel {
+            background: rgba(255,255,255,0.55);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border-radius: 14px; padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(255,255,255,0.4);
+            transition: box-shadow 0.25s ease;
+        }
+        .panel:hover { box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+
         /* BUTTONS */
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; font-size: 0.9rem; }
-        .btn:hover { opacity: 0.9; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-primary { background: #2563eb; color: white; }
-        .btn-success { background: #10b981; color: white; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-purple { background: #a855f7; color: white; }
-        
+        .btn {
+            padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 6px;
+            transition: all 0.25s ease; font-size: 0.9rem;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-primary {
+            background: linear-gradient(135deg, #06b6d4, #0891b2); color: white;
+            box-shadow: 0 3px 10px rgba(6,182,212,0.25);
+        }
+        .btn-primary:hover { box-shadow: 0 5px 18px rgba(6,182,212,0.4); }
+        .btn-success {
+            background: linear-gradient(135deg, #10b981, #059669); color: white;
+            box-shadow: 0 3px 10px rgba(16,185,129,0.25);
+        }
+        .btn-success:hover { box-shadow: 0 5px 18px rgba(16,185,129,0.4); }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
+            box-shadow: 0 3px 10px rgba(239,68,68,0.2);
+        }
+        .btn-danger:hover { box-shadow: 0 5px 18px rgba(239,68,68,0.35); }
+        .btn-purple {
+            background: linear-gradient(135deg, #a855f7, #9333ea); color: white;
+            box-shadow: 0 3px 10px rgba(168,85,247,0.25);
+        }
+        .btn-purple:hover { box-shadow: 0 5px 18px rgba(168,85,247,0.4); }
+
         /* TABLES */
         table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
-        th { background: #f8fafc; color: #64748b; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
+        th, td { padding: 12px 16px; border-bottom: 1px solid rgba(226,232,240,0.5); }
+        th { background: rgba(240,249,255,0.5); color: #475569; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
         .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: white; }
-        
+
         /* MODALS */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(4px); }
-        .modal-content { background: white; padding: 2rem; border-radius: 12px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
-        .form-control { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; margin-bottom: 15px; font-family: inherit; }
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            align-items: center; justify-content: center; z-index: 2000;
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .modal-content {
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 2rem; border-radius: 16px; width: 90%; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .form-control {
+            width: 100%; padding: 10px;
+            border: 1px solid rgba(203,213,225,0.6); border-radius: 8px;
+            box-sizing: border-box; margin-bottom: 15px;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(6px);
+            transition: all 0.25s ease;
+            outline: none;
+        }
+        .form-control:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6,182,212,0.2);
+            background: rgba(255,255,255,0.8);
+        }
     </style>
 </head>
 <body>
+<header class="header">
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <img src="/assets/images/logo.png" alt="Safe Horizon Logo" style="width: 40px; height: 40px; object-fit: contain;">
+        <h1>Safe Horizon Admin Center</h1>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button class="btn btn-primary" onclick="openManualAddModal()" style="background: rgba(6,182,212,0.1); color: #0e7490; box-shadow: none; border: 1px solid rgba(6,182,212,0.3);">
+            <span class="material-icons" style="font-size: 1.1rem;">add_location_alt</span> Manually Add Record
+        </button>
+        <button class="btn btn-danger" onclick="adminLogout()" style="background: #ef4444; color: white;">
+            <span class="material-icons" style="font-size: 1.1rem;">logout</span> Logout
+        </button>
+    </div>
+</header>
 
-    <header class="header">
-        <h1><span class="material-icons">admin_panel_settings</span> Safe Horizon Admin Center</h1>
-        <div>
-            <button class="btn btn-primary" onclick="openManualAddModal()" style="background: #ffffff; color: #0d47a1;">
-                <span class="material-icons" style="font-size: 1.1rem;">add_location_alt</span> Manually Add Record
-            </button>
-        </div>
-    </header>
+<script>
+    // --- 🔒 SESSION CHECK ---
+    if (localStorage.getItem("adminToken") !== "admin_secret_token_2024") {
+        window.location.href = "/admin-login";
+    }
 
-    <div class="container">
-        
+    function adminLogout() {
+        localStorage.removeItem("adminToken");
+        window.location.href = "/admin-login";
+    }
+</script>
+
+<div class="container">
         <div style="display: flex; gap: 20px; margin-bottom: 2rem;">
             <div class="panel" style="flex: 1; text-align: center; border-top: 4px solid #3b82f6; margin-bottom: 0;">
                 <h3 style="margin: 0; color: #64748b; font-size: 1rem;">Total Reports in Database</h3>
@@ -200,8 +306,8 @@
         // ☁️ CLOUD URL (Render)
         // const API_BASE_URL = 'https://safehorizon-3.onrender.com';
 
-        // 💻 LOCAL URL (Your Laptop)
-        const API_BASE_URL = 'http://127.0.0.1:8000';
+        // 💻 LOCAL URL (Mobile Hotspot)
+        const API_BASE_URL = 'http://10.197.96.244:8000';
         const GEOAPIFY_KEY = "fd24e74b5e854fa4981cdd39f8452044"; 
 
         let severityChartInstance = null;

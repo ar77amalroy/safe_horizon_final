@@ -4,8 +4,8 @@ import 'package:http/http.dart' as http;
 import '../config.dart'; // 🟢 ADD THIS IMPORT!
 
 class ApiService {
-  // Android Emulator localhost
-  static const String baseUrl = "AppConfig.baseUrl";
+  // Use the configuration from AppConfig
+  static const String baseUrl = AppConfig.baseUrl;
   // =====================================================
   // REGISTER
   // =====================================================

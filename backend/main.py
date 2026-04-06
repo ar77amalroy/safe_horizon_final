@@ -24,27 +24,92 @@ from database import engine, SessionLocal
 from email_utils import send_verification_email
 
 
+from fastapi.responses import FileResponse
+
 # =====================================================
 # CREATE FASTAPI APP
 # =====================================================
 app = FastAPI()
 
-# CORS
-@app.get("/")
-def read_root():
-    return {"status": "SafeHorizon API is Live and Running!"}
+# 🟢 NEW: CORS Middleware (CRITICAL FOR CROSS-DEVICE ACCESS)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# create tables
-models.Base.metadata.create_all(bind=engine)
-
+# Define current directory for relative file paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # =====================================================
-# UPLOADS CONFIG
+# UPLOADS & ASSETS CONFIG
 # =====================================================
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# Mount the assets folder so the logo can be served to the website
+# Adjusting path to look for assets in the parent directory if needed
+ASSETS_PATH = os.path.join(os.path.dirname(BASE_DIR), "assets")
+if os.path.exists(ASSETS_PATH):
+    app.mount("/assets", StaticFiles(directory=ASSETS_PATH), name="assets")
+
+# --- WEB ROUTES (HOSTING THE PORTALS) ---
+@app.get("/admin")
+def serve_admin():
+    # We serve the dashboard directly, but the dashboard JS will check for a token
+    path = os.path.join(BASE_DIR, "admin.html")
+    if not os.path.exists(path):
+        return {"error": "admin.html not found"}
+    return FileResponse(path)
+
+@app.get("/admin-login")
+def serve_admin_login():
+    path = os.path.join(BASE_DIR, "admin_login.html")
+    if not os.path.exists(path):
+        return {"error": "admin_login.html not found"}
+    return FileResponse(path)
+
+class AdminLogin(BaseModel):
+    email: str
+    password: str
+
+@app.post("/admin/login")
+def admin_login(data: AdminLogin):
+    # SIMPLE HARDCODED ADMIN CREDENTIALS
+    if data.email == "safehorizonadmin@gmail.com" and data.password == "admin123":
+        return {"access_token": "admin_secret_token_2024", "token_type": "bearer"}
+    raise HTTPException(status_code=401, detail="Invalid admin credentials")
+
+@app.get("/partner-login")
+def serve_partner_login():
+    path = os.path.join(BASE_DIR, "partner_login.html")
+    if not os.path.exists(path):
+        return {"error": "partner_login.html not found"}
+    return FileResponse(path)
+
+@app.get("/partner-dashboard")
+def serve_partner_dashboard():
+    path = os.path.join(BASE_DIR, "partner_dashboard.html")
+    if not os.path.exists(path):
+        return {"error": "partner_dashboard.html not found"}
+    return FileResponse(path)
+
+# Add fallback routes for .html extensions to prevent "Not Found" errors
+@app.get("/partner_login.html")
+def redirect_partner_login():
+    return serve_partner_login()
+
+@app.get("/partner_dashboard.html")
+def redirect_partner_dashboard():
+    return serve_partner_dashboard()
+
+@app.get("/admin.html")
+def redirect_admin():
+    return serve_admin()
 
 
 # =====================================================

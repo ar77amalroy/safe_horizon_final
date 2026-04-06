@@ -3,6 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'services/osrm_service.dart';
+import 'services/zone_service.dart';
+import 'models/accident_zone.dart';
 import 'active_navigation_screen.dart'; // 🟢 Import your new screen!
 
 class RoutePreviewScreen extends StatefulWidget {
@@ -26,6 +28,7 @@ class _RoutePreviewScreenState extends State<RoutePreviewScreen> {
 
   List<LatLng> _routePoints = [];
   List<RouteStep> _routeInstructions = [];
+  List<AccidentZone> _dangerZones = [];
   String _eta = "Calculating...";
   String _distance = "...";
 
@@ -36,6 +39,16 @@ class _RoutePreviewScreenState extends State<RoutePreviewScreen> {
   void initState() {
     super.initState();
     _fetchRoute();
+    _loadDangerZones();
+  }
+
+  Future<void> _loadDangerZones() async {
+    final zones = await ZoneService.fetchDangerZones();
+    if (mounted) {
+      setState(() {
+        _dangerZones = zones;
+      });
+    }
   }
 
   Future<void> _fetchRoute() async {
@@ -100,6 +113,42 @@ class _RoutePreviewScreenState extends State<RoutePreviewScreen> {
                     ),
                   ],
                 ),
+
+              // 🔴 DANGER ZONES LAYER
+              if (_dangerZones.isNotEmpty)
+                CircleLayer(
+                  circles: _dangerZones.expand<CircleMarker>((zone) {
+                    final isHighRisk = zone.riskLevel == 'High';
+                    final isMediumRisk = zone.riskLevel == 'Medium';
+
+                    Color zoneColor = Colors.green;
+                    if (isHighRisk) {
+                      zoneColor = Colors.red;
+                    } else if (isMediumRisk) {
+                      zoneColor = Colors.orange;
+                    }
+
+                    return [
+                      CircleMarker(
+                        point: zone.center,
+                        radius: zone.radiusMeters.toDouble() + 300.0,
+                        useRadiusInMeter: true,
+                        color: zoneColor.withOpacity(0.05),
+                        borderColor: zoneColor.withOpacity(0.2),
+                        borderStrokeWidth: 1,
+                      ),
+                      CircleMarker(
+                        point: zone.center,
+                        radius: zone.radiusMeters.toDouble(),
+                        useRadiusInMeter: true,
+                        color: zoneColor.withOpacity(0.3),
+                        borderColor: zoneColor,
+                        borderStrokeWidth: 2,
+                      ),
+                    ];
+                  }).toList(),
+                ),
+
               MarkerLayer(
                 markers: [
                   Marker(

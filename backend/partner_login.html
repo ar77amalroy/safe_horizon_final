@@ -6,21 +6,83 @@
     <title>Safe Horizon | Partner Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #0d47a1 0%, #1976d2 100%); height: 100vh; margin: 0; display: flex; justify-content: center; align-items: center; }
-        .login-card { background: white; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center; }
-        .logo-area { display: flex; align-items: center; justify-content: center; gap: 8px; color: #0d47a1; margin-bottom: 1.5rem; }
+        @keyframes floatDiagonal {
+            0% { transform: translate(40%, -40%) rotate(-30deg); }
+            50% { transform: translate(-40%, 40%) rotate(-30deg); }
+            100% { transform: translate(40%, -40%) rotate(-30deg); }
+        }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #f0f9ff;
+            height: 100vh; margin: 0;
+            display: flex; justify-content: center; align-items: center;
+            position: relative; overflow: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            width: 140vmax; height: 140vmax;
+            top: 50%; left: 50%;
+            margin-top: -70vmax; margin-left: -70vmax;
+            background: linear-gradient(135deg,
+                rgba(103,232,249,0.4) 0%,
+                rgba(6,182,212,0.4) 30%,
+                rgba(165,243,252,0.4) 50%,
+                rgba(34,211,238,0.35) 70%,
+                transparent 100%);
+            border-radius: 40px;
+            animation: floatDiagonal 18s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+        .login-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+            padding: 2.5rem; border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.45);
+            width: 100%; max-width: 400px; text-align: center;
+            position: relative; z-index: 1;
+        }
+        .logo-area { display: flex; align-items: center; justify-content: center; gap: 8px; color: #0e7490; margin-bottom: 1.5rem; }
         .logo-area h1 { margin: 0; font-size: 1.5rem; }
-        p.subtitle { color: #546e7a; font-size: 0.95rem; margin-bottom: 2rem; }
-        
+        p.subtitle { color: #64748b; font-size: 0.95rem; margin-bottom: 2rem; }
+
         .form-group { margin-bottom: 1.5rem; text-align: left; }
-        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #546e7a; margin-bottom: 6px; }
-        .form-control { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cfd8dc; border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
-        .form-control:focus { border-color: #1976d2; box-shadow: 0 0 0 3px rgba(25,118,210,0.1); }
-        
-        .btn { width: 100%; padding: 12px; background: #1976d2; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn:hover { background: #0d47a1; }
-        .btn:disabled { background: #90caf9; cursor: not-allowed; }
+        .form-label { display: block; font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 6px; }
+        .form-control {
+            width: 100%; box-sizing: border-box; padding: 12px;
+            border: 1px solid rgba(203,213,225,0.6); border-radius: 8px;
+            font-size: 1rem; outline: none;
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(6px);
+            transition: all 0.25s ease;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .form-control:focus {
+            border-color: #06b6d4;
+            box-shadow: 0 0 0 3px rgba(6,182,212,0.2);
+            background: rgba(255,255,255,0.75);
+        }
+
+        .btn {
+            width: 100%; padding: 12px;
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white; border: none; border-radius: 8px;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 14px rgba(6,182,212,0.3);
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #0891b2, #0e7490);
+            box-shadow: 0 6px 20px rgba(6,182,212,0.45);
+            transform: translateY(-1px);
+        }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
         /* Hide the OTP section initially */
         #otpSection { display: none; }
@@ -30,7 +92,7 @@
 
     <div class="login-card">
         <div class="logo-area">
-            <span class="material-icons" style="font-size: 32px;">shield</span>
+            <img src="/assets/images/logo.png" alt="Safe Horizon Logo" style="width: 50px; height: 50px; object-fit: contain;">
             <h1>Partner Portal</h1>
         </div>
         <p class="subtitle" id="instructionText">Enter your official registered email to receive a one-time login code.</p>
@@ -57,8 +119,8 @@
         // ☁️ CLOUD URL (Render) - Comment this out for now
         // const API_BASE_URL = 'https://safehorizon-3.onrender.com';
 
-        // 💻 LOCAL URL (Your Laptop) - Use this for local testing
-        const API_BASE_URL = 'http://127.0.0.1:8000';
+        // 💻 LOCAL URL (Mobile Hotspot)
+        const API_BASE_URL = 'http://10.197.96.244:8000';
         let userEmail = '';
 
         async function requestOTP() {
@@ -108,7 +170,7 @@
                     }));
                     
                     // Redirect to the actual dashboard
-                    window.location.href = "partner_dashboard.html";
+                    window.location.href = "/partner-dashboard";
                 } else {
                     alert(data.detail || "Invalid or expired OTP.");
                     btn.innerText = "Secure Login"; btn.disabled = false;

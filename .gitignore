@@ -31,9 +31,29 @@ ios/Flutter/.last_build_id
 # =========================
 backend/venv/
 backend/__pycache__/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# =========================
+# ENVIRONMENT & SECRETS
+# =========================
+.env
+*.env
+.env.*
+!.env.example
+
+# =========================
+# DATABASE FILES
+# =========================
+*.db
+*.sqlite3
+
+# =========================
+# UPLOADS (user-generated)
+# =========================
+backend/uploads/
 
 # =========================
 # IDE FILES
@@ -54,3 +74,9 @@ backend/__pycache__/
 # =========================
 .DS_Store
 Thumbs.db
+
+# =========================
+# GEMINI / AI TOOLS
+# =========================
+.gemini/
+.agents/

@@ -47,6 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   DateTime? _lastApiCallTime;
 
   List<AccidentZone> _dangerZones = [];
+  Timer? _zoneRefreshTimer;
 
   // --- SEARCH STATE VARIABLES ---
   final TextEditingController _searchController = TextEditingController();
@@ -60,6 +61,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
 
     _loadDangerZones();
+    // 🟢 Refresh danger zones every 30 seconds
+    _zoneRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      _loadDangerZones();
+    });
 
     locationService.startTracking((location) {
       if (!mounted) return;
@@ -181,6 +186,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _debounce?.cancel();
+    _zoneRefreshTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     locationService.stopTracking();
@@ -510,26 +516,30 @@ class _DashboardScreenState extends State<DashboardScreen>
                     CircleLayer(
                       circles: _dangerZones.expand<CircleMarker>((zone) {
                         final isHighRisk = zone.riskLevel == 'High';
+                        final isMediumRisk = zone.riskLevel == 'Medium';
+
+                        Color zoneColor = Colors.green;
+                        if (isHighRisk) {
+                          zoneColor = Colors.red;
+                        } else if (isMediumRisk) {
+                          zoneColor = Colors.orange;
+                        }
 
                         return [
                           CircleMarker(
                             point: zone.center,
-                            radius: zone.radiusMeters.toDouble() + 1500.0,
+                            radius: zone.radiusMeters.toDouble() + 500.0,
                             useRadiusInMeter: true,
-                            color: Colors.yellow.withOpacity(0.1),
-                            borderColor: Colors.yellow.withOpacity(0.5),
+                            color: zoneColor.withOpacity(0.05),
+                            borderColor: zoneColor.withOpacity(0.2),
                             borderStrokeWidth: 1,
                           ),
                           CircleMarker(
                             point: zone.center,
                             radius: zone.radiusMeters.toDouble(),
                             useRadiusInMeter: true,
-                            color: isHighRisk
-                                ? Colors.red.withOpacity(0.3)
-                                : Colors.orange.withOpacity(0.3),
-                            borderColor: isHighRisk
-                                ? Colors.red
-                                : Colors.orange,
+                            color: zoneColor.withOpacity(0.3),
+                            borderColor: zoneColor,
                             borderStrokeWidth: 2,
                           ),
                         ];

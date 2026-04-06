@@ -6,19 +6,75 @@
     <title>Safe Horizon | Authority Portal</title>
     <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #263238; margin: 0; min-height: 100vh; }
-        body { margin: 0; }
-        .header { background: #263238; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
-        .main { padding: 2rem; max-width: 1000px; margin: 0 auto; }
-        .panel { background: #fff; border-radius: 8px; padding: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        @keyframes floatDiagonal {
+            0% { transform: translate(40%, -40%) rotate(-30deg); }
+            50% { transform: translate(-40%, 40%) rotate(-30deg); }
+            100% { transform: translate(40%, -40%) rotate(-30deg); }
+        }
+        :root { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; margin: 0; min-height: 100vh; }
+        body {
+            margin: 0;
+            background: #f0f9ff;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            width: 140vmax; height: 140vmax;
+            top: 50%; left: 50%;
+            margin-top: -70vmax; margin-left: -70vmax;
+            background: linear-gradient(135deg,
+                rgba(103,232,249,0.4) 0%,
+                rgba(6,182,212,0.4) 30%,
+                rgba(165,243,252,0.4) 50%,
+                rgba(34,211,238,0.35) 70%,
+                transparent 100%);
+            border-radius: 40px;
+            animation: floatDiagonal 18s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+        }
+        .header {
+            background: rgba(255,255,255,0.65);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            color: #1e293b; padding: 1rem 2rem;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+            position: relative; z-index: 10;
+        }
+        .main { padding: 2rem; max-width: 1000px; margin: 0 auto; position: relative; z-index: 1; }
+        .panel {
+            background: rgba(255,255,255,0.55);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border-radius: 14px; padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+            border: 1px solid rgba(255,255,255,0.4);
+        }
         table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-        th, td { padding: 1rem; border-bottom: 1px solid #eceff1; text-align: left; }
-        th { background: #eceff1; color: #455a64; }
-        .btn { padding: 0.5rem 1rem; border-radius: 4px; border: none; font-weight: 600; cursor: pointer; color: white; }
-        .btn-success { background: #2e7d32; } .btn-danger { background: #c62828; }
+        th, td { padding: 1rem; border-bottom: 1px solid rgba(226,232,240,0.6); text-align: left; }
+        th { background: rgba(240,249,255,0.6); color: #475569; font-weight: 600; }
+        .btn {
+            padding: 0.5rem 1rem; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; color: white;
+            transition: all 0.25s ease; font-family: 'Inter', system-ui, sans-serif;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            box-shadow: 0 3px 10px rgba(6,182,212,0.25);
+        }
+        .btn-success:hover { box-shadow: 0 5px 16px rgba(6,182,212,0.4); transform: translateY(-1px); }
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 3px 10px rgba(239,68,68,0.2);
+        }
+        .btn-danger:hover { box-shadow: 0 5px 16px rgba(239,68,68,0.35); transform: translateY(-1px); }
         .status-badge { padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; }
-        .status-assigned { background: #fff3e0; color: #ef6c00; } .status-resolved { background: #e8f5e9; color: #2e7d32; }
+        .status-assigned { background: rgba(255,243,224,0.8); color: #ef6c00; }
+        .status-resolved { background: rgba(232,245,233,0.8); color: #2e7d32; }
     </style>
 </head>
 <body>
@@ -46,7 +102,7 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'safehorizon-3.onrender.com';
+        const API_BASE_URL = 'http://10.197.96.244:8000';
 
         async function loadAssignedCases() {
             const authId = document.getElementById('authIdInput').value;
