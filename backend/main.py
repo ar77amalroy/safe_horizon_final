@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file before anything else
+
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -555,31 +558,30 @@ def get_nearby_partners(report_id: int, db: Session = Depends(get_db)):
 # 🟢 NEW: PARTNER PORTAL OTP ADDITIONS
 # =====================================================
 
-# --- EMAIL CONFIGURATION FOR OTP ---
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-# ⚠️ ACTION REQUIRED: Update these credentials
-SENDER_EMAIL = "safehorizon99@gmail.com" 
-SENDER_PASSWORD = "pzgl vynx opqi ykvu"         
+# --- EMAIL CONFIGURATION FOR OTP (uses fastapi-mail, same as registration) ---
+async def send_otp_email(to_email: str, otp: str):
+    from fastapi_mail import FastMail, MessageSchema
+    from email_config import conf
 
-def send_otp_email(to_email: str, otp: str):
-    msg = MIMEText(f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.")
-    msg['Subject'] = 'Safe Horizon - Secure Partner Login'
-    msg['From'] = SENDER_EMAIL
-    msg['To'] = to_email
+    message = MessageSchema(
+        subject="Safe Horizon - Secure Partner Login",
+        recipients=[to_email],
+        body=f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.",
+        subtype="plain"
+    )
 
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-            server.send_message(msg)
+        print(f"📧 Attempting to send OTP to {to_email}...")
+        fm = FastMail(conf)
+        await fm.send_message(message)
+        print(f"✅ OTP email sent successfully to {to_email}")
     except Exception as e:
-        print(f"Failed to send email: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send OTP email. Check server logs.")
+        print(f"❌ Failed to send OTP email: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send OTP email: {str(e)}")
 
 # --- OTP ENDPOINTS ---
 @app.post("/partner/request-otp")
-def request_otp(email: str, db: Session = Depends(get_db)):
+async def request_otp(email: str, db: Session = Depends(get_db)):
     partner = db.query(models.Authority).filter(models.Authority.email == email).first()
     
     if not partner:
@@ -591,7 +593,7 @@ def request_otp(email: str, db: Session = Depends(get_db)):
     partner.otp_expires_at = datetime.utcnow() + timedelta(minutes=5)
     db.commit()
 
-    send_otp_email(email, otp)
+    await send_otp_email(email, otp)
     
     return {"message": f"OTP sent successfully to {email}"}
 
