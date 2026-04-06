@@ -1,38 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Safe Horizon | Admin Dashboard</title>
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         @keyframes floatDiagonal {
-            0% { transform: translate(40%, -40%) rotate(-30deg); }
-            50% { transform: translate(-40%, 40%) rotate(-30deg); }
-            100% { transform: translate(40%, -40%) rotate(-30deg); }
+            0% {
+                transform: translate(40%, -40%) rotate(-30deg);
+            }
+
+            50% {
+                transform: translate(-40%, 40%) rotate(-30deg);
+            }
+
+            100% {
+                transform: translate(40%, -40%) rotate(-30deg);
+            }
         }
-        :root { font-family: 'Inter', system-ui, sans-serif; color: #1e293b; margin: 0; min-height: 100vh; }
+
+        :root {
+            font-family: 'Inter', system-ui, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            min-height: 100vh;
+        }
+
         body {
-            margin: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow-y: auto;
             background: #f0f9ff;
             position: relative;
         }
+
         body::before {
             content: '';
             position: fixed;
-            width: 140vmax; height: 140vmax;
-            top: 50%; left: 50%;
-            margin-top: -70vmax; margin-left: -70vmax;
+            width: 140vmax;
+            height: 140vmax;
+            top: 50%;
+            left: 50%;
+            margin-top: -70vmax;
+            margin-left: -70vmax;
             background: linear-gradient(135deg,
-                rgba(103,232,249,0.4) 0%,
-                rgba(6,182,212,0.4) 30%,
-                rgba(165,243,252,0.4) 50%,
-                rgba(34,211,238,0.35) 70%,
-                transparent 100%);
+                    rgba(103, 232, 249, 0.4) 0%,
+                    rgba(6, 182, 212, 0.4) 30%,
+                    rgba(165, 243, 252, 0.4) 50%,
+                    rgba(34, 211, 238, 0.35) 70%,
+                    transparent 100%);
             border-radius: 40px;
             animation: floatDiagonal 18s ease-in-out infinite;
             z-index: 0;
@@ -42,125 +66,234 @@
 
         /* HEADER */
         .header {
-            background: rgba(255,255,255,0.7);
-            backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-            color: #1e293b; padding: 1rem 2rem;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-            border-bottom: 1px solid rgba(255,255,255,0.4);
-            position: sticky; top: 0; z-index: 100;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            color: #1e293b;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
-        .header h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; font-weight: 600; color: #0e7490; }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #0e7490;
+        }
 
         /* LAYOUT & PANELS */
-        .container { padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; box-sizing: border-box; position: relative; z-index: 1; }
+        .container {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+        }
+
         .panel {
-            background: rgba(255,255,255,0.55);
-            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            border-radius: 14px; padding: 1.5rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.07);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 14px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.07);
             margin-bottom: 2rem;
-            border: 1px solid rgba(255,255,255,0.4);
+            border: 1px solid rgba(255, 255, 255, 0.4);
             transition: box-shadow 0.25s ease;
         }
-        .panel:hover { box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+
+        .panel:hover {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
 
         /* BUTTONS */
         .btn {
-            padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
-            display: inline-flex; align-items: center; gap: 6px;
-            transition: all 0.25s ease; font-size: 0.9rem;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.25s ease;
+            font-size: 0.9rem;
             font-family: 'Inter', system-ui, sans-serif;
         }
-        .btn:hover { transform: translateY(-1px); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-primary {
-            background: linear-gradient(135deg, #06b6d4, #0891b2); color: white;
-            box-shadow: 0 3px 10px rgba(6,182,212,0.25);
+            background: linear-gradient(135deg, #06b6d4, #0891b2);
+            color: white;
+            box-shadow: 0 3px 10px rgba(6, 182, 212, 0.25);
         }
-        .btn-primary:hover { box-shadow: 0 5px 18px rgba(6,182,212,0.4); }
+
+        .btn-primary:hover {
+            box-shadow: 0 5px 18px rgba(6, 182, 212, 0.4);
+        }
+
         .btn-success {
-            background: linear-gradient(135deg, #10b981, #059669); color: white;
-            box-shadow: 0 3px 10px rgba(16,185,129,0.25);
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
         }
-        .btn-success:hover { box-shadow: 0 5px 18px rgba(16,185,129,0.4); }
+
+        .btn-success:hover {
+            box-shadow: 0 5px 18px rgba(16, 185, 129, 0.4);
+        }
+
         .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626); color: white;
-            box-shadow: 0 3px 10px rgba(239,68,68,0.2);
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            box-shadow: 0 3px 10px rgba(239, 68, 68, 0.2);
         }
-        .btn-danger:hover { box-shadow: 0 5px 18px rgba(239,68,68,0.35); }
+
+        .btn-danger:hover {
+            box-shadow: 0 5px 18px rgba(239, 68, 68, 0.35);
+        }
+
         .btn-purple {
-            background: linear-gradient(135deg, #a855f7, #9333ea); color: white;
-            box-shadow: 0 3px 10px rgba(168,85,247,0.25);
+            background: linear-gradient(135deg, #a855f7, #9333ea);
+            color: white;
+            box-shadow: 0 3px 10px rgba(168, 85, 247, 0.25);
         }
-        .btn-purple:hover { box-shadow: 0 5px 18px rgba(168,85,247,0.4); }
+
+        .btn-purple:hover {
+            box-shadow: 0 5px 18px rgba(168, 85, 247, 0.4);
+        }
 
         /* TABLES */
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 12px 16px; border-bottom: 1px solid rgba(226,232,240,0.5); }
-        th { background: rgba(240,249,255,0.5); color: #475569; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; }
-        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: white; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+        }
+
+        th {
+            background: rgba(240, 249, 255, 0.5);
+            color: #475569;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: white;
+        }
 
         /* MODALS */
         .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(15, 23, 42, 0.4);
-            align-items: center; justify-content: center; z-index: 2000;
-            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
+
         .modal-content {
-            background: rgba(255,255,255,0.75);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            padding: 2rem; border-radius: 16px; width: 90%; max-height: 90vh; overflow-y: auto;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 2rem;
+            border-radius: 16px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
-            border: 1px solid rgba(255,255,255,0.5);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
+
         .form-control {
-            width: 100%; padding: 10px;
-            border: 1px solid rgba(203,213,225,0.6); border-radius: 8px;
-            box-sizing: border-box; margin-bottom: 15px;
+            width: 100%;
+            padding: 10px;
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            border-radius: 8px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
             font-family: 'Inter', system-ui, sans-serif;
-            background: rgba(255,255,255,0.5);
+            background: rgba(255, 255, 255, 0.5);
             backdrop-filter: blur(6px);
             transition: all 0.25s ease;
             outline: none;
         }
+
         .form-control:focus {
             border-color: #06b6d4;
-            box-shadow: 0 0 0 3px rgba(6,182,212,0.2);
-            background: rgba(255,255,255,0.8);
+            box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2);
+            background: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
+
 <body>
-<header class="header">
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <img src="/assets/images/logo.png" alt="Safe Horizon Logo" style="width: 40px; height: 40px; object-fit: contain;">
-        <h1>Safe Horizon Admin Center</h1>
-    </div>
-    <div style="display: flex; gap: 10px;">
-        <button class="btn btn-primary" onclick="openManualAddModal()" style="background: rgba(6,182,212,0.1); color: #0e7490; box-shadow: none; border: 1px solid rgba(6,182,212,0.3);">
-            <span class="material-icons" style="font-size: 1.1rem;">add_location_alt</span> Manually Add Record
-        </button>
-        <button class="btn btn-danger" onclick="adminLogout()" style="background: #ef4444; color: white;">
-            <span class="material-icons" style="font-size: 1.1rem;">logout</span> Logout
-        </button>
-    </div>
-</header>
+    <header class="header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <img src="/assets/images/logo.png" alt="Safe Horizon Logo"
+                style="width: 40px; height: 40px; object-fit: contain;">
+            <h1>Safe Horizon Admin Center</h1>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" onclick="openManualAddModal()"
+                style="background: rgba(6,182,212,0.1); color: #0e7490; box-shadow: none; border: 1px solid rgba(6,182,212,0.3);">
+                <span class="material-icons" style="font-size: 1.1rem;">add_location_alt</span> Manually Add Record
+            </button>
+            <button class="btn btn-danger" onclick="adminLogout()" style="background: #ef4444; color: white;">
+                <span class="material-icons" style="font-size: 1.1rem;">logout</span> Logout
+            </button>
+        </div>
+    </header>
 
-<script>
-    // --- 🔒 SESSION CHECK ---
-    if (localStorage.getItem("adminToken") !== "admin_secret_token_2024") {
-        window.location.href = "/admin-login";
-    }
+    <script>
+        // --- 🔒 SESSION CHECK ---
+        if (localStorage.getItem("adminToken") !== "admin_secret_token_2024") {
+            window.location.href = "/admin-login";
+        }
 
-    function adminLogout() {
-        localStorage.removeItem("adminToken");
-        window.location.href = "/admin-login";
-    }
-</script>
+        function adminLogout() {
+            localStorage.removeItem("adminToken");
+            window.location.href = "/admin-login";
+        }
+    </script>
 
-<div class="container">
+    <div class="container">
         <div style="display: flex; gap: 20px; margin-bottom: 2rem;">
             <div class="panel" style="flex: 1; text-align: center; border-top: 4px solid #3b82f6; margin-bottom: 0;">
                 <h3 style="margin: 0; color: #64748b; font-size: 1rem;">Total Reports in Database</h3>
@@ -187,14 +320,23 @@
                 <h3 style="margin-top: 0; display: flex; align-items: center; gap: 8px; color: #1e293b;">
                     <span class="material-icons" style="color: #a855f7;">auto_awesome</span> AI-Generated Danger Zones
                 </h3>
-                <p style="color: #64748b; font-size: 0.9rem; margin-top: -10px;">Clusters mapped by the DBSCAN algorithm.</p>
+                <p style="color: #64748b; font-size: 0.9rem; margin-top: -10px;">Clusters mapped by the DBSCAN
+                    algorithm.</p>
                 <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <table>
                         <thead style="position: sticky; top: 0; z-index: 10;">
-                            <tr><th>Zone ID</th><th>Risk Level</th><th>Center (Lat, Lng)</th><th>Accidents</th><th>Action</th></tr>
+                            <tr>
+                                <th>Zone ID</th>
+                                <th>Risk Level</th>
+                                <th>Center (Lat, Lng)</th>
+                                <th>Accidents</th>
+                                <th>Action</th>
+                            </tr>
                         </thead>
                         <tbody id="zonesTableBody">
-                            <tr><td colspan="5" style="text-align: center; padding: 20px;">Loading AI Zones...</td></tr>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 20px;">Loading AI Zones...</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -202,7 +344,8 @@
         </div>
 
         <div class="panel">
-            <h3 style="margin-top: 0; color: #1e293b;"><span class="material-icons" style="vertical-align: middle; color: #f59e0b;">pending_actions</span> Pending User Reports</h3>
+            <h3 style="margin-top: 0; color: #1e293b;"><span class="material-icons"
+                    style="vertical-align: middle; color: #f59e0b;">pending_actions</span> Pending User Reports</h3>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -213,12 +356,14 @@
                             <th>Severity</th>
                             <th>Location</th>
                             <th>Description</th>
-                            <th>Attachment</th> 
+                            <th>Attachment</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="pendingReportsBody">
-                        <tr><td colspan="8" style="text-align: center;">Loading...</td></tr>
+                        <tr>
+                            <td colspan="8" style="text-align: center;">Loading...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -226,8 +371,11 @@
 
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; color: #1e293b;"><span class="material-icons" style="vertical-align: middle; color: #10b981;">local_police</span> Verified Partner Network</h3>
-                <button class="btn btn-success" onclick="openAddPartnerModal()"><span class="material-icons" style="font-size: 1.1rem;">person_add</span> Register New Partner</button>
+                <h3 style="margin: 0; color: #1e293b;"><span class="material-icons"
+                        style="vertical-align: middle; color: #10b981;">local_police</span> Verified Partner Network
+                </h3>
+                <button class="btn btn-success" onclick="openAddPartnerModal()"><span class="material-icons"
+                        style="font-size: 1.1rem;">person_add</span> Register New Partner</button>
             </div>
             <div style="overflow-x: auto;">
                 <table>
@@ -242,7 +390,9 @@
                         </tr>
                     </thead>
                     <tbody id="partnersTableBody">
-                        <tr><td colspan="6" style="text-align: center;">Loading...</td></tr>
+                        <tr>
+                            <td colspan="6" style="text-align: center;">Loading...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -252,19 +402,29 @@
 
     <div id="verifyModal" class="modal">
         <div class="modal-content" style="max-width: 900px;">
-            <h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons" style="vertical-align: middle;">verified_user</span> Verify & Dispatch Report</h2>
-            
-            <div id="verifyReportDetails" style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;"></div>
-            
+            <h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons"
+                    style="vertical-align: middle;">verified_user</span> Verify & Dispatch Report</h2>
+
+            <div id="verifyReportDetails"
+                style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+            </div>
+
             <div style="display: flex; gap: 20px;">
-                
+
                 <div style="flex: 1;">
-                    <h3 style="color: #1e293b; margin-bottom: 5px; font-size: 1.1rem;"><span class="material-icons" style="vertical-align: middle; font-size: 1.2rem; color: #10b981;">admin_panel_settings</span> Registered Partners</h3>
-                    <p style="color: #64748b; font-size: 0.85rem; margin-top: 0;">Dispatch directly to partner dashboard.</p>
+                    <h3 style="color: #1e293b; margin-bottom: 5px; font-size: 1.1rem;"><span class="material-icons"
+                            style="vertical-align: middle; font-size: 1.2rem; color: #10b981;">admin_panel_settings</span>
+                        Registered Partners</h3>
+                    <p style="color: #64748b; font-size: 0.85rem; margin-top: 0;">Dispatch directly to partner
+                        dashboard.</p>
                     <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                         <table>
                             <thead style="background: #f8fafc; position: sticky; top: 0;">
-                                <tr><th>Partner Name</th><th>Distance</th><th>Action</th></tr>
+                                <tr>
+                                    <th>Partner Name</th>
+                                    <th>Distance</th>
+                                    <th>Action</th>
+                                </tr>
                             </thead>
                             <tbody id="nearbyPartnersBody"></tbody>
                         </table>
@@ -272,12 +432,18 @@
                 </div>
 
                 <div style="flex: 1;">
-                    <h3 style="color: #1e293b; margin-bottom: 5px; font-size: 1.1rem;"><span class="material-icons" style="vertical-align: middle; font-size: 1.2rem; color: #3b82f6;">public</span> Public Emergency Directory</h3>
-                    <p style="color: #64748b; font-size: 0.85rem; margin-top: 0;">Nearest external public facilities for manual contact.</p>
+                    <h3 style="color: #1e293b; margin-bottom: 5px; font-size: 1.1rem;"><span class="material-icons"
+                            style="vertical-align: middle; font-size: 1.2rem; color: #3b82f6;">public</span> Public
+                        Emergency Directory</h3>
+                    <p style="color: #64748b; font-size: 0.85rem; margin-top: 0;">Nearest external public facilities for
+                        manual contact.</p>
                     <div style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                         <table>
                             <thead style="background: #f8fafc; position: sticky; top: 0;">
-                                <tr><th>Facility Details</th><th>Distance</th></tr>
+                                <tr>
+                                    <th>Facility Details</th>
+                                    <th>Distance</th>
+                                </tr>
                             </thead>
                             <tbody id="publicAuthoritiesBody"></tbody>
                         </table>
@@ -286,33 +452,133 @@
 
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; padding-top: 15px; border-top: 1px solid #e2e8f0; margin-top: 20px;">
                 <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-danger" onclick="processReportFromModal('reject')"><span class="material-icons" style="font-size: 1rem;">cancel</span> Reject as Fake</button>
-                    <button class="btn btn-success" onclick="processReportFromModal('approve')"><span class="material-icons" style="font-size: 1rem;">check_circle</span> Approve (No Dispatch)</button>
+                    <button class="btn btn-danger" onclick="processReportFromModal('reject')"><span
+                            class="material-icons" style="font-size: 1rem;">cancel</span> Reject as Fake</button>
+                    <button class="btn btn-success" onclick="processReportFromModal('approve')"><span
+                            class="material-icons" style="font-size: 1rem;">check_circle</span> Approve (No
+                        Dispatch)</button>
                 </div>
-                <button class="btn" style="background: #64748b; color: white;" onclick="closeVerifyModal()">Close</button>
+                <button class="btn" style="background: #64748b; color: white;"
+                    onclick="closeVerifyModal()">Close</button>
             </div>
         </div>
     </div>
 
-    <div id="manualAddModal" class="modal"><div class="modal-content" style="max-width: 500px;"><h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons" style="vertical-align: middle;">add_circle</span> Add Record</h2><form id="adminManualForm" onsubmit="submitAdminManualReport(event)"><div style="display: flex; gap: 15px;"><div style="flex: 1;"><label style="font-size: 0.85rem; color: #64748b;">Latitude</label><input type="number" step="any" id="adminLat" class="form-control" required></div><div style="flex: 1;"><label style="font-size: 0.85rem; color: #64748b;">Longitude</label><input type="number" step="any" id="adminLng" class="form-control" required></div></div><label style="font-size: 0.85rem; color: #64748b;">Severity Level</label><select id="adminSeverity" class="form-control" required><option value="" disabled selected>Select Severity...</option><option value="Minor">Minor</option><option value="Major">Major</option><option value="Critical">Critical</option></select><label style="font-size: 0.85rem; color: #64748b;">Date & Time</label><input type="text" id="adminDate" class="form-control" required><label style="font-size: 0.85rem; color: #64748b;">Description</label><textarea id="adminDesc" class="form-control" rows="3"></textarea><div style="display: flex; gap: 10px; justify-content: flex-end;"><button type="button" class="btn btn-danger" onclick="closeManualAddModal()">Cancel</button><button type="submit" class="btn btn-success" id="adminSubmitBtn">Save Record</button></div></form></div></div>
-    <div id="zoneDataModal" class="modal"><div class="modal-content" style="max-width: 800px;"><h2 id="zoneDataTitle" style="margin-top: 0; color: #0d47a1;">Zone Insights</h2><div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;"><table><thead style="background: #f8fafc; position: sticky; top: 0;"><tr><th>Record ID</th><th>Date</th><th>Severity</th><th>Description</th></tr></thead><tbody id="zoneDataTableBody"></tbody></table></div><div style="text-align: right; margin-top: 20px;"><button class="btn btn-danger" onclick="closeZoneDataModal()">Close View</button></div></div></div>
-    <div id="partnerDataModal" class="modal"><div class="modal-content" style="max-width: 800px;"><h2 id="partnerDataTitle" style="margin-top: 0; color: #0d47a1;">Partner Uploads</h2><div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;"><table><thead style="background: #f8fafc; position: sticky; top: 0;"><tr><th>ID</th><th>Date & Time</th><th>Severity</th><th>Location (Lat, Lng)</th><th>Description</th></tr></thead><tbody id="partnerDataTableBody"></tbody></table></div><div style="text-align: right; margin-top: 20px;"><button class="btn btn-danger" onclick="closePartnerDataModal()">Close View</button></div></div></div>
-    <div id="addPartnerModal" class="modal"><div class="modal-content" style="max-width: 500px;"><h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons" style="vertical-align: middle;">person_add</span> Register Partner</h2><form id="addPartnerForm" onsubmit="submitNewPartner(event)"><input type="text" id="partnerName" class="form-control" placeholder="Partner Name (e.g., City Hospital)" required><select id="partnerType" class="form-control" required><option value="" disabled selected>Select Department Type...</option><option value="Police">Police Department</option><option value="Hospital">Hospital / Medical</option><option value="Fire">Fire / Rescue</option><option value="Transport">Transport Authority</option></select><input type="email" id="partnerEmail" class="form-control" placeholder="Official Email Address" required><input type="text" id="partnerPhone" class="form-control" placeholder="Contact Phone" required><div style="display: flex; gap: 15px;"><input type="number" step="any" id="partnerLat" class="form-control" placeholder="Latitude" required><input type="number" step="any" id="partnerLng" class="form-control" placeholder="Longitude" required></div><div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;"><button type="button" class="btn btn-danger" onclick="closeAddPartnerModal()">Cancel</button><button type="submit" class="btn btn-success" id="savePartnerBtn">Create Account</button></div></form></div></div>
-    <div id="imageModal" class="modal"><div class="modal-content" style="max-width: 600px; text-align: center;"><h2 style="margin-top: 0; color: #0d47a1;">Accident Photo</h2><img id="modalImagePreview" src="" alt="Accident photo not found" style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-bottom: 15px; object-fit: contain;"><div style="text-align: right;"><button class="btn btn-danger" onclick="closeImageModal()">Close Image</button></div></div></div>
+    <div id="manualAddModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons"
+                    style="vertical-align: middle;">add_circle</span> Add Record</h2>
+            <form id="adminManualForm" onsubmit="submitAdminManualReport(event)">
+                <div style="display: flex; gap: 15px;">
+                    <div style="flex: 1;"><label style="font-size: 0.85rem; color: #64748b;">Latitude</label><input
+                            type="number" step="any" id="adminLat" class="form-control" required></div>
+                    <div style="flex: 1;"><label style="font-size: 0.85rem; color: #64748b;">Longitude</label><input
+                            type="number" step="any" id="adminLng" class="form-control" required></div>
+                </div><label style="font-size: 0.85rem; color: #64748b;">Severity Level</label><select
+                    id="adminSeverity" class="form-control" required>
+                    <option value="" disabled selected>Select Severity...</option>
+                    <option value="Minor">Minor</option>
+                    <option value="Major">Major</option>
+                    <option value="Critical">Critical</option>
+                </select><label style="font-size: 0.85rem; color: #64748b;">Date & Time</label><input type="text"
+                    id="adminDate" class="form-control" required><label
+                    style="font-size: 0.85rem; color: #64748b;">Description</label><textarea id="adminDesc"
+                    class="form-control" rows="3"></textarea>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;"><button type="button"
+                        class="btn btn-danger" onclick="closeManualAddModal()">Cancel</button><button type="submit"
+                        class="btn btn-success" id="adminSubmitBtn">Save Record</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="zoneDataModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2 id="zoneDataTitle" style="margin-top: 0; color: #0d47a1;">Zone Insights</h2>
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <table>
+                    <thead style="background: #f8fafc; position: sticky; top: 0;">
+                        <tr>
+                            <th>Record ID</th>
+                            <th>Date</th>
+                            <th>Severity</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="zoneDataTableBody"></tbody>
+                </table>
+            </div>
+            <div style="text-align: right; margin-top: 20px;"><button class="btn btn-danger"
+                    onclick="closeZoneDataModal()">Close View</button></div>
+        </div>
+    </div>
+    <div id="partnerDataModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2 id="partnerDataTitle" style="margin-top: 0; color: #0d47a1;">Partner Uploads</h2>
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <table>
+                    <thead style="background: #f8fafc; position: sticky; top: 0;">
+                        <tr>
+                            <th>ID</th>
+                            <th>Date & Time</th>
+                            <th>Severity</th>
+                            <th>Location (Lat, Lng)</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partnerDataTableBody"></tbody>
+                </table>
+            </div>
+            <div style="text-align: right; margin-top: 20px;"><button class="btn btn-danger"
+                    onclick="closePartnerDataModal()">Close View</button></div>
+        </div>
+    </div>
+    <div id="addPartnerModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <h2 style="margin-top: 0; color: #0d47a1;"><span class="material-icons"
+                    style="vertical-align: middle;">person_add</span> Register Partner</h2>
+            <form id="addPartnerForm" onsubmit="submitNewPartner(event)"><input type="text" id="partnerName"
+                    class="form-control" placeholder="Partner Name (e.g., City Hospital)" required><select
+                    id="partnerType" class="form-control" required>
+                    <option value="" disabled selected>Select Department Type...</option>
+                    <option value="Police">Police Department</option>
+                    <option value="Hospital">Hospital / Medical</option>
+                    <option value="Fire">Fire / Rescue</option>
+                    <option value="Transport">Transport Authority</option>
+                </select><input type="email" id="partnerEmail" class="form-control" placeholder="Official Email Address"
+                    required><input type="text" id="partnerPhone" class="form-control" placeholder="Contact Phone"
+                    required>
+                <div style="display: flex; gap: 15px;"><input type="number" step="any" id="partnerLat"
+                        class="form-control" placeholder="Latitude" required><input type="number" step="any"
+                        id="partnerLng" class="form-control" placeholder="Longitude" required></div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;"><button
+                        type="button" class="btn btn-danger" onclick="closeAddPartnerModal()">Cancel</button><button
+                        type="submit" class="btn btn-success" id="savePartnerBtn">Create Account</button></div>
+            </form>
+        </div>
+    </div>
+    <div id="imageModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; text-align: center;">
+            <h2 style="margin-top: 0; color: #0d47a1;">Accident Photo</h2><img id="modalImagePreview" src=""
+                alt="Accident photo not found"
+                style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-bottom: 15px; object-fit: contain;">
+            <div style="text-align: right;"><button class="btn btn-danger" onclick="closeImageModal()">Close
+                    Image</button></div>
+        </div>
+    </div>
 
     <script>
         // ☁️ CLOUD URL (Render)
-        // const API_BASE_URL = 'https://safehorizon-3.onrender.com';
+        const API_BASE_URL = 'https://safe-horizon-backend.onrender.com';
 
         // 💻 LOCAL URL (Mobile Hotspot)
-        const API_BASE_URL = 'http://10.197.96.244:8000';
-        const GEOAPIFY_KEY = "fd24e74b5e854fa4981cdd39f8452044"; 
+        //const API_BASE_URL = 'http://10.197.96.244:8000';
+        const GEOAPIFY_KEY = "fd24e74b5e854fa4981cdd39f8452044";
 
         let severityChartInstance = null;
         let currentZonesData = [];
-        let globalPendingReports = []; 
+        let globalPendingReports = [];
         let currentVerifyReportId = null;
 
         window.onload = () => {
@@ -323,7 +589,7 @@
         async function loadPendingReports() {
             try {
                 const res = await fetch(`${API_BASE_URL}/admin/pending-reports`);
-                globalPendingReports = await res.json(); 
+                globalPendingReports = await res.json();
                 const tbody = document.getElementById('pendingReportsBody');
                 tbody.innerHTML = '';
                 if (globalPendingReports.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b;">No pending reports at this time.</td></tr>'; return; }
@@ -339,7 +605,7 @@
             currentVerifyReportId = reportId;
             const report = globalPendingReports.find(r => r.id === reportId);
             document.getElementById('verifyModal').style.display = 'flex';
-            
+
             // 1. Setup Header
             let sevColor = report.severity === 'Critical' ? '#ef4444' : (report.severity === 'Major' ? '#f59e0b' : '#3b82f6');
             document.getElementById('verifyReportDetails').innerHTML = `<div style="display: flex; justify-content: space-between;"><div><strong style="font-size: 1.1rem;">Report #${report.id}</strong> - <strong style="color: ${sevColor};">${report.severity} Severity</strong><br><span style="color: #64748b; font-size: 0.9rem;">${report.accident_datetime} | Location: ${report.latitude}, ${report.longitude}</span><br><p style="margin: 8px 0 0 0; font-size: 0.95rem;"><em>"${report.description || 'No user description provided.'}"</em></p></div></div>`;
@@ -351,19 +617,19 @@
                 const res = await fetch(`${API_BASE_URL}/admin/report/${reportId}/nearby-partners`);
                 const partners = await res.json();
                 dbTbody.innerHTML = '';
-                if(partners.length === 0) { dbTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #64748b; font-size: 0.9rem;">No registered partners in system.</td></tr>'; }
+                if (partners.length === 0) { dbTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color: #64748b; font-size: 0.9rem;">No registered partners in system.</td></tr>'; }
                 else {
                     partners.forEach(p => {
                         let distColor = p.distance_km < 5 ? '#10b981' : '#f59e0b';
                         dbTbody.innerHTML += `<tr><td><strong>${p.name}</strong><br><span style="color: #64748b; font-size: 0.8rem;">${p.phone}</span></td><td><strong style="color: ${distColor};">${p.distance_km} km</strong></td><td><button class="btn btn-primary" style="background: #0ea5e9; padding: 4px 8px; font-size: 0.8rem;" onclick="dispatchToPartner(${p.id})"><span class="material-icons" style="font-size: 1rem; vertical-align: middle;">send</span></button></td></tr>`;
                     });
                 }
-            } catch(e) { dbTbody.innerHTML = '<tr><td colspan="3">Error loading partners.</td></tr>'; }
+            } catch (e) { dbTbody.innerHTML = '<tr><td colspan="3">Error loading partners.</td></tr>'; }
 
             // 🟢 3. Fetch Public Authorities via Geoapify API (UPDATED CATEGORIES)
             const pubTbody = document.getElementById('publicAuthoritiesBody');
             pubTbody.innerHTML = '<tr><td colspan="2" style="text-align:center;">Searching public directory...</td></tr>';
-            
+
             try {
                 // Corrected V2 Categories: healthcare.hospital, service.police
                 const url = `https://api.geoapify.com/v2/places?categories=healthcare.hospital,service.police&filter=circle:${report.longitude},${report.latitude},15000&bias=proximity:${report.longitude},${report.latitude}&limit=8&apiKey=${GEOAPIFY_KEY}`;
@@ -372,20 +638,20 @@
                 const places = pubData.features || [];
 
                 pubTbody.innerHTML = '';
-                if(places.length === 0) {
+                if (places.length === 0) {
                     pubTbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color: #64748b; font-size: 0.9rem;">No public services found nearby.</td></tr>';
                 } else {
                     places.forEach(place => {
                         const p = place.properties;
                         const distKm = (p.distance / 1000).toFixed(2);
-                        
+
                         let type = "Medical";
-                        if(p.categories && p.categories.includes("service.police")) type = "Police";
-                        else if(p.categories && p.categories.includes("healthcare.hospital")) type = "Hospital";
-                        
+                        if (p.categories && p.categories.includes("service.police")) type = "Police";
+                        else if (p.categories && p.categories.includes("healthcare.hospital")) type = "Hospital";
+
                         let contact = p.contact?.phone || "No phone available";
                         let address = p.address_line2 || p.street || "Address not provided";
-                        
+
                         pubTbody.innerHTML += `
                             <tr>
                                 <td>
@@ -398,7 +664,7 @@
                         `;
                     });
                 }
-            } catch(err) {
+            } catch (err) {
                 pubTbody.innerHTML = '<tr><td colspan="2" style="color: red; text-align: center;">Failed to load public directory.</td></tr>';
             }
         }
@@ -406,19 +672,19 @@
         function closeVerifyModal() { document.getElementById('verifyModal').style.display = 'none'; currentVerifyReportId = null; }
 
         async function dispatchToPartner(partnerId) {
-            if(!confirm("Are you sure you want to dispatch this emergency to this partner?")) return;
+            if (!confirm("Are you sure you want to dispatch this emergency to this partner?")) return;
             try {
                 const res = await fetch(`${API_BASE_URL}/authority/assign/${currentVerifyReportId}/${partnerId}`, { method: 'PUT' });
-                if (res.ok) { alert("✅ Case successfully dispatched to partner dashboard!"); closeVerifyModal(); loadPendingReports(); loadAnalytics(); } 
+                if (res.ok) { alert("✅ Case successfully dispatched to partner dashboard!"); closeVerifyModal(); loadPendingReports(); loadAnalytics(); }
                 else { alert("Failed to dispatch case."); }
             } catch (err) { alert("Network Error."); }
         }
 
         async function processReportFromModal(action) {
-            if(!confirm(`Are you sure you want to ${action} this report?`)) return;
+            if (!confirm(`Are you sure you want to ${action} this report?`)) return;
             try {
                 const res = await fetch(`${API_BASE_URL}/admin/${action}/${currentVerifyReportId}`, { method: 'PUT' });
-                if (res.ok) { closeVerifyModal(); loadPendingReports(); loadAnalytics(); loadZones(); } 
+                if (res.ok) { closeVerifyModal(); loadPendingReports(); loadAnalytics(); loadZones(); }
                 else { alert("Failed to process report."); }
             } catch (err) { alert("Network Error"); }
         }
@@ -430,7 +696,7 @@
         function closeZoneDataModal() { document.getElementById('zoneDataModal').style.display = 'none'; }
         function viewImage(url) { document.getElementById('modalImagePreview').src = url; document.getElementById('imageModal').style.display = 'flex'; }
         function closeImageModal() { document.getElementById('imageModal').style.display = 'none'; document.getElementById('modalImagePreview').src = ''; }
-        async function loadPartners() { try { const res = await fetch(`${API_BASE_URL}/admin/partners`); const partners = await res.json(); const tbody = document.getElementById('partnersTableBody'); tbody.innerHTML = ''; if(partners.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">No partners registered.</td></tr>'; return; } partners.forEach(p => { tbody.innerHTML += `<tr><td><strong>#${p.id}</strong></td><td>${p.name}</td><td><span class="status-badge" style="background: #64748b;">${p.type}</span></td><td style="font-size: 0.9rem;">${p.email}<br><span style="color: #64748b">${p.phone}</span></td><td style="font-size: 0.9rem;">Lat: ${p.latitude}<br>Lng: ${p.longitude}</td><td><button class="btn btn-primary" onclick="viewPartnerData(${p.id}, '${p.name}')"><span class="material-icons" style="font-size: 1rem;">visibility</span> View Uploads</button></td></tr>`; }); } catch (err) { console.error(err); } }
+        async function loadPartners() { try { const res = await fetch(`${API_BASE_URL}/admin/partners`); const partners = await res.json(); const tbody = document.getElementById('partnersTableBody'); tbody.innerHTML = ''; if (partners.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">No partners registered.</td></tr>'; return; } partners.forEach(p => { tbody.innerHTML += `<tr><td><strong>#${p.id}</strong></td><td>${p.name}</td><td><span class="status-badge" style="background: #64748b;">${p.type}</span></td><td style="font-size: 0.9rem;">${p.email}<br><span style="color: #64748b">${p.phone}</span></td><td style="font-size: 0.9rem;">Lat: ${p.latitude}<br>Lng: ${p.longitude}</td><td><button class="btn btn-primary" onclick="viewPartnerData(${p.id}, '${p.name}')"><span class="material-icons" style="font-size: 1rem;">visibility</span> View Uploads</button></td></tr>`; }); } catch (err) { console.error(err); } }
         async function viewPartnerData(authId, pName) { document.getElementById('partnerDataModal').style.display = 'flex'; document.getElementById('partnerDataTitle').innerText = `${pName} - Submitted Data`; const tbody = document.getElementById('partnerDataTableBody'); tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading...</td></tr>'; try { const res = await fetch(`${API_BASE_URL}/admin/partner/${authId}/data`); const data = await res.json(); if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #64748b;">No data uploaded yet.</td></tr>'; return; } tbody.innerHTML = ''; data.forEach(item => { let sevColor = item.severity === 'Critical' ? '#ef4444' : (item.severity === 'Major' ? '#f59e0b' : '#3b82f6'); tbody.innerHTML += `<tr><td>#${item.id}</td><td style="font-size: 0.9rem;">${item.accident_datetime}</td><td><strong style="color: ${sevColor}">${item.severity}</strong></td><td style="font-size: 0.9rem;">${item.latitude}, ${item.longitude}</td><td style="font-size: 0.9rem;">${item.description || 'N/A'}</td></tr>`; }); } catch (err) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: red;">Failed to load data.</td></tr>'; } }
         function closePartnerDataModal() { document.getElementById('partnerDataModal').style.display = 'none'; }
         function openAddPartnerModal() { document.getElementById('addPartnerModal').style.display = 'flex'; }
@@ -441,4 +707,5 @@
         async function submitAdminManualReport(e) { e.preventDefault(); const btn = document.getElementById('adminSubmitBtn'); btn.innerText = "Saving..."; btn.disabled = true; const formData = new FormData(); formData.append("latitude", document.getElementById('adminLat').value); formData.append("longitude", document.getElementById('adminLng').value); formData.append("severity", document.getElementById('adminSeverity').value); formData.append("accident_datetime", document.getElementById('adminDate').value); formData.append("description", document.getElementById('adminDesc').value); try { const response = await fetch(`${API_BASE_URL}/admin/report`, { method: 'POST', body: formData }); if (response.ok) { alert("Record approved! ✅"); closeManualAddModal(); loadAnalytics(); loadZones(); } else alert("Failed."); } catch (err) { alert("Network Error"); } finally { btn.innerText = "Save Record"; btn.disabled = false; } }
     </script>
 </body>
+
 </html>
