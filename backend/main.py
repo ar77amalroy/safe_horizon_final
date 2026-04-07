@@ -569,7 +569,10 @@ def get_nearby_partners(report_id: int, db: Session = Depends(get_db)):
 import resend
 
 def send_otp_email(to_email: str, otp: str):
-    resend_key = os.getenv("RESEND_API_KEY", "")
+    if to_email.lower() == "alanroy2007appu@gmail.com":
+        resend_key = os.getenv("RESEND_API_KEY_ALAN", "")
+    else:
+        resend_key = os.getenv("RESEND_API_KEY", "")
     
     if resend_key:
         # Use Resend HTTP API (works on Render)

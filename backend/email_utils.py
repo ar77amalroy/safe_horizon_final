@@ -3,7 +3,10 @@ import resend
 
 
 async def send_verification_email(email: str, code: str):
-    resend_key = os.getenv("RESEND_API_KEY", "")
+    if email.lower() == "alanroy2007appu@gmail.com":
+        resend_key = os.getenv("RESEND_API_KEY_ALAN", "")
+    else:
+        resend_key = os.getenv("RESEND_API_KEY", "")
 
     if resend_key:
         # Use Resend HTTP API (works on Render — SMTP is blocked)
