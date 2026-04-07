@@ -568,8 +568,9 @@ def send_otp_email(to_email: str, otp: str):
         # Use Resend HTTP API (works on Render)
         try:
             resend.api_key = resend_key
+            print(f"📧 Resend: sending to {to_email} with key {resend_key[:10]}...", flush=True)
             r = resend.Emails.send({
-                "from": "Safe Horizon <onboarding@resend.dev>",
+                "from": "onboarding@resend.dev",
                 "to": [to_email],
                 "subject": "Safe Horizon - Secure Partner Login",
                 "text": f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes."
@@ -599,6 +600,16 @@ def send_otp_email(to_email: str, otp: str):
             print(f"❌ SMTP failed: {e}", flush=True)
             return False
 
+# Debug endpoint to verify email config on Render
+@app.get("/debug/email-config")
+def debug_email_config():
+    return {
+        "RESEND_API_KEY_SET": bool(os.getenv("RESEND_API_KEY")),
+        "RESEND_KEY_PREFIX": os.getenv("RESEND_API_KEY", "")[:10] + "..." if os.getenv("RESEND_API_KEY") else "NOT SET",
+        "SENDER_EMAIL": os.getenv("SENDER_EMAIL", "NOT SET"),
+        "MAIL_PORT": os.getenv("MAIL_PORT", "NOT SET")
+    }
+
 # --- OTP ENDPOINTS ---
 @app.post("/partner/request-otp")
 async def request_otp(email: str, db: Session = Depends(get_db)):
@@ -618,7 +629,7 @@ async def request_otp(email: str, db: Session = Depends(get_db)):
     if email_sent:
         return {"message": f"OTP sent successfully to {email}"}
     else:
-        raise HTTPException(status_code=500, detail="Failed to send OTP email. Please try again.")
+        raise HTTPException(status_code=500, detail=f"Failed to send OTP email to {email}. Check RESEND_API_KEY is set and recipient is verified.")
 
 
 @app.post("/partner/verify-otp")
