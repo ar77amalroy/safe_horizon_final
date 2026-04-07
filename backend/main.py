@@ -558,31 +558,46 @@ def get_nearby_partners(report_id: int, db: Session = Depends(get_db)):
 # 🟢 NEW: PARTNER PORTAL OTP ADDITIONS
 # =====================================================
 
-# --- EMAIL CONFIGURATION FOR OTP (uses fastapi-mail, same as registration) ---
-async def send_otp_email(to_email: str, otp: str):
-    from fastapi_mail import FastMail, MessageSchema
-    from email_config import conf
+# --- OTP EMAIL via Resend HTTP API (bypasses SMTP blocks on Render) ---
+import resend
 
-    message = MessageSchema(
-        subject="Safe Horizon - Secure Partner Login",
-        recipients=[to_email],
-        body=f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.",
-        subtype="plain"
-    )
-
-    try:
-        import socket
-        socket.setdefaulttimeout(5)  # 5 sec timeout for SMTP
-        print(f"📧 Attempting to send OTP to {to_email}...")
-        fm = FastMail(conf)
-        await fm.send_message(message)
-        socket.setdefaulttimeout(None)  # Reset
-        print(f"✅ OTP email sent successfully to {to_email}")
-        return True
-    except Exception as e:
-        print(f"⚠️ Email send failed (SMTP may be blocked): {e}")
-        print(f"📋 OTP for {to_email}: {otp}  (check Render logs)")
-        return False
+def send_otp_email(to_email: str, otp: str):
+    resend_key = os.getenv("RESEND_API_KEY", "")
+    
+    if resend_key:
+        # Use Resend HTTP API (works on Render)
+        try:
+            resend.api_key = resend_key
+            r = resend.Emails.send({
+                "from": "Safe Horizon <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": "Safe Horizon - Secure Partner Login",
+                "text": f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes."
+            })
+            print(f"✅ OTP email sent via Resend to {to_email}")
+            return True
+        except Exception as e:
+            print(f"❌ Resend failed: {e}", flush=True)
+            return False
+    else:
+        # Fallback: use SMTP locally
+        try:
+            import smtplib as _smtp
+            from email.mime.text import MIMEText as _MIMEText
+            sender = os.getenv("SENDER_EMAIL", "safehorizonalerts@gmail.com")
+            pwd = os.getenv("SENDER_PASSWORD", "")
+            msg = _MIMEText(f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.")
+            msg['Subject'] = 'Safe Horizon - Secure Partner Login'
+            msg['From'] = sender
+            msg['To'] = to_email
+            with _smtp.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+                server.login(sender, pwd)
+                server.send_message(msg)
+            print(f"✅ OTP email sent via SMTP to {to_email}")
+            return True
+        except Exception as e:
+            print(f"❌ SMTP failed: {e}", flush=True)
+            return False
 
 # --- OTP ENDPOINTS ---
 @app.post("/partner/request-otp")
@@ -598,13 +613,12 @@ async def request_otp(email: str, db: Session = Depends(get_db)):
     partner.otp_expires_at = datetime.utcnow() + timedelta(minutes=5)
     db.commit()
 
-    print(f"🔐 Generated OTP for {email}: {otp}")
-    email_sent = await send_otp_email(email, otp)
+    email_sent = send_otp_email(email, otp)
     
     if email_sent:
         return {"message": f"OTP sent successfully to {email}"}
     else:
-        return {"message": f"OTP generated (email unavailable). Your code is: {otp}", "otp": otp}
+        raise HTTPException(status_code=500, detail="Failed to send OTP email. Please try again.")
 
 
 @app.post("/partner/verify-otp")
