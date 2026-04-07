@@ -33,11 +33,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // ================= STEP 1 =================
-  static const _allowedDomains = [
-    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
-    'icloud.com', 'protonmail.com', 'mail.com', 'zoho.com',
-    'aol.com', 'yandex.com', 'live.com', 'msn.com',
-  ];
 
   Future<void> generateCode() async {
     if (!_formKey.currentState!.validate()) return;
@@ -45,11 +40,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     String name = nameController.text.trim();
     String email = emailController.text.trim();
 
-    // Validate email domain
-    final domain = email.split('@').last.toLowerCase();
-    if (!_allowedDomains.contains(domain)) {
+    // Validate email domain — only @gmail.com allowed
+    if (!email.toLowerCase().endsWith('@gmail.com')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please use a valid email (Gmail, Yahoo, Outlook, etc.) ❌")),
+        const SnackBar(content: Text("Only @gmail.com email addresses are allowed ❌")),
       );
       return;
     }

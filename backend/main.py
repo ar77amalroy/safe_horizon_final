@@ -184,11 +184,7 @@ async def upload_profile_image(
 # =====================================================
 # REGISTER
 # =====================================================
-ALLOWED_EMAIL_DOMAINS = [
-    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
-    "icloud.com", "protonmail.com", "mail.com", "zoho.com",
-    "aol.com", "yandex.com", "live.com", "msn.com"
-]
+ALLOWED_EMAIL_DOMAINS = ["gmail.com"]
 
 @app.post("/register")
 async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -196,7 +192,7 @@ async def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     # Validate email domain
     domain = user.email.split("@")[-1].lower()
     if domain not in ALLOWED_EMAIL_DOMAINS:
-        raise HTTPException(status_code=400, detail=f"Invalid email domain. Please use a valid email provider (e.g. Gmail, Yahoo, Outlook).")
+        raise HTTPException(status_code=400, detail="Only @gmail.com email addresses are allowed.")
 
     existing = crud.get_user_by_email(db, user.email)
 
