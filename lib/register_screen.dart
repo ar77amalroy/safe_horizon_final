@@ -33,11 +33,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // ================= STEP 1 =================
+  static const _allowedDomains = [
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+    'icloud.com', 'protonmail.com', 'mail.com', 'zoho.com',
+    'aol.com', 'yandex.com', 'live.com', 'msn.com',
+  ];
+
   Future<void> generateCode() async {
     if (!_formKey.currentState!.validate()) return;
 
     String name = nameController.text.trim();
     String email = emailController.text.trim();
+
+    // Validate email domain
+    final domain = email.split('@').last.toLowerCase();
+    if (!_allowedDomains.contains(domain)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please use a valid email (Gmail, Yahoo, Outlook, etc.) ❌")),
+      );
+      return;
+    }
 
     String? phone = phoneController.text.trim().isEmpty
         ? null
