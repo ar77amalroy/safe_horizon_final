@@ -43,7 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Validate email domain — only @gmail.com allowed
     if (!email.toLowerCase().endsWith('@gmail.com')) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Only @gmail.com email addresses are allowed ❌")),
+        const SnackBar(content: Text("Please enter a valid Gmail address ✉️")),
       );
       return;
     }

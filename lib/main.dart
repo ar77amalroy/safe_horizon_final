@@ -85,15 +85,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    final result = await ApiService.login(email, password);
+    Map<String, dynamic>? result;
+    try {
+      result = await ApiService.login(email, password);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Network error: Could not connect to server ❌")),
+      );
+      return;
+    }
 
     if (!mounted) return;
 
     setState(() => _isLoading = false);
 
     if (result != null && result["message"] == "Login successful") {
-      String name = result["name"];
-      String userEmail = result["email"];
+      String name = result["name"] ?? "User";
+      String userEmail = result["email"] ?? email;
       String? userPhone = result["phone"];
 
       // 🟢 NEW: Save session data locally

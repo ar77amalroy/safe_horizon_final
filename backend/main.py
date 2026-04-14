@@ -355,7 +355,7 @@ async def report_accident(
     db: Session = Depends(get_db)
 ):
 
-    print("🚨 REPORT API HIT")
+    print("[REPORT] REPORT API HIT")
 
     try:
         image_path = None
@@ -384,7 +384,7 @@ async def report_accident(
         db.commit()
         db.refresh(accident)
 
-        print("✅ REPORT SAVED:", accident.id)
+        print("[OK] REPORT SAVED:", accident.id)
 
         return {
             "message": "Accident report submitted successfully",
@@ -393,7 +393,7 @@ async def report_accident(
         }
 
     except Exception as e:
-        print("❌ REPORT FAILED:", str(e))
+        print("[ERR] REPORT FAILED:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -565,49 +565,49 @@ def get_nearby_partners(report_id: int, db: Session = Depends(get_db)):
 # 🟢 NEW: PARTNER PORTAL OTP ADDITIONS
 # =====================================================
 
-# --- OTP EMAIL via Resend HTTP API (bypasses SMTP blocks on Render) ---
-import resend
-
+# --- OTP EMAIL via SMTP (primary for localhost) with Resend fallback ---
 def send_otp_email(to_email: str, otp: str):
-    if to_email.lower() == "alanroy2007appu@gmail.com":
-        resend_key = os.getenv("RESEND_API_KEY_ALAN", "")
-    else:
-        resend_key = os.getenv("RESEND_API_KEY", "")
-    
-    if resend_key:
-        # Use Resend HTTP API (works on Render)
+    # Primary: use SMTP (works locally)
+    try:
+        import smtplib as _smtp
+        from email.mime.text import MIMEText as _MIMEText
+        sender = os.getenv("SENDER_EMAIL", "safehorizonalerts@gmail.com")
+        pwd = os.getenv("SENDER_PASSWORD", "")
+        msg = _MIMEText(f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.")
+        msg['Subject'] = 'Safe Horizon - Secure Partner Login'
+        msg['From'] = sender
+        msg['To'] = to_email
+        with _smtp.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+            server.login(sender, pwd)
+            server.send_message(msg)
+        print(f"[OK] OTP email sent via SMTP to {to_email}")
+        return True
+    except Exception as e:
+        print(f"[WARN] SMTP failed: {e}, trying Resend fallback...", flush=True)
+        # Fallback: use Resend HTTP API
         try:
+            if to_email.lower() == "alanroy2007appu@gmail.com":
+                resend_key = os.getenv("RESEND_API_KEY_ALAN", "")
+            else:
+                resend_key = os.getenv("RESEND_API_KEY", "")
+
+            if not resend_key:
+                print(f"[ERR] No Resend API key set, OTP not sent to {to_email}", flush=True)
+                return False
+
+            import resend
+
             resend.api_key = resend_key
-            print(f"📧 Resend: sending to {to_email} with key {resend_key[:10]}...", flush=True)
             r = resend.Emails.send({
                 "from": "onboarding@resend.dev",
                 "to": [to_email],
                 "subject": "Safe Horizon - Secure Partner Login",
                 "text": f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes."
             })
-            print(f"✅ OTP email sent via Resend to {to_email}")
+            print(f"[OK] OTP email sent via Resend to {to_email}")
             return True
-        except Exception as e:
-            print(f"❌ Resend failed: {e}", flush=True)
-            return False
-    else:
-        # Fallback: use SMTP locally
-        try:
-            import smtplib as _smtp
-            from email.mime.text import MIMEText as _MIMEText
-            sender = os.getenv("SENDER_EMAIL", "safehorizonalerts@gmail.com")
-            pwd = os.getenv("SENDER_PASSWORD", "")
-            msg = _MIMEText(f"Emergency System Alert.\n\nYour Safe Horizon Partner Login OTP is: {otp}\n\nThis code is highly sensitive and will expire in 5 minutes.")
-            msg['Subject'] = 'Safe Horizon - Secure Partner Login'
-            msg['From'] = sender
-            msg['To'] = to_email
-            with _smtp.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-                server.login(sender, pwd)
-                server.send_message(msg)
-            print(f"✅ OTP email sent via SMTP to {to_email}")
-            return True
-        except Exception as e:
-            print(f"❌ SMTP failed: {e}", flush=True)
+        except Exception as e2:
+            print(f"[ERR] Both SMTP and Resend failed: {e2}", flush=True)
             return False
 
 # Debug endpoint to verify email config on Render
